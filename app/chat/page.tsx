@@ -11,6 +11,7 @@ const chatItems = [
     unread: 3,
     avatarSeed: '11',
     type: 'group',
+    description: 'Official WhatsApp group for Skyline Apartments project updates and coordination.'
   },
   {
     id: 2,
@@ -20,6 +21,7 @@ const chatItems = [
     unread: 2,
     avatarSeed: '12',
     type: 'group',
+    description: 'Design and construction alignment for the high-end Green Valley luxury villa.'
   },
   {
     id: 3,
@@ -29,6 +31,7 @@ const chatItems = [
     unread: 1,
     avatarSeed: '13',
     type: 'group',
+    description: 'Corporate partition styling, cabling, and turn-key execution for Orchid office towers.'
   },
   {
     id: 4,
@@ -38,6 +41,7 @@ const chatItems = [
     unread: 0,
     avatarSeed: '16',
     type: 'group',
+    description: 'Premium recreation site coordination, water body styling, and pool deck construction.'
   },
   {
     id: 5,
@@ -47,6 +51,7 @@ const chatItems = [
     unread: 0,
     avatarSeed: '15',
     type: 'group',
+    description: 'Residential finishing, wall texture, and luxury curation at Lake View master site.'
   },
   {
     id: 6,
@@ -55,6 +60,7 @@ const chatItems = [
     time: '20 May',
     unread: 0,
     type: 'megaphone',
+    description: 'Broadcasting company protocols, leave calendar updates, and compliance announcements.'
   },
   {
     id: 7,
@@ -63,17 +69,12 @@ const chatItems = [
     time: '19 May',
     unread: 0,
     type: 'document',
+    description: 'Engineering logs, architecture blueprints, municipal clearances, and file logs.'
   },
 ];
 
-export default function Chat() {
-  const [activeChat, setActiveChat] = useState(1);
-  const [activeTab, setActiveTab] = useState('Chats');
-  const [muteToggle, setMuteToggle] = useState(false);
-  const [messageText, setMessageText] = useState('');
-
-  const [chats, setChats] = useState(chatItems);
-  const [messages, setMessages] = useState([
+const initialMessagesMap: Record<number, any[]> = {
+  1: [
     {
       id: 1,
       sender: 'Ravi Kumar',
@@ -115,13 +116,115 @@ export default function Chat() {
       id: 5,
       sender: 'Vikram Patel',
       text: 'Sure, we will share the update by EOD.',
-      time: '09:32 AM',
+      time: '10:30 AM',
       type: 'left',
       color: 'text-purple-500',
       avatar: 'painter',
       reactions: [{ emoji: '👍', count: 1 }]
     }
-  ]);
+  ],
+  2: [
+    {
+      id: 1,
+      sender: 'Sunil Sharma',
+      text: 'Modular kitchen cabinetry framing has arrived today.',
+      time: 'Yesterday',
+      type: 'left',
+      color: 'text-orange-500',
+      avatar: 'sunil'
+    },
+    {
+      id: 2,
+      sender: 'Admin',
+      text: 'Excellent. Please start alignment and fitting tomorrow morning.',
+      time: 'Yesterday',
+      type: 'right'
+    },
+    {
+      id: 3,
+      sender: 'Sunil Sharma',
+      text: 'Material delivery completed',
+      time: '09:45 AM',
+      type: 'left',
+      color: 'text-orange-500',
+      avatar: 'sunil'
+    }
+  ],
+  3: [
+    {
+      id: 1,
+      sender: 'Amit Singh',
+      text: 'Lobby partition framing is complete.',
+      time: 'Yesterday',
+      type: 'left',
+      color: 'text-blue-500',
+      avatar: 'amit'
+    },
+    {
+      id: 2,
+      sender: 'Amit Singh',
+      text: 'Electrical work in progress',
+      time: 'Yesterday',
+      type: 'left',
+      color: 'text-blue-500',
+      avatar: 'amit'
+    }
+  ],
+  4: [
+    {
+      id: 1,
+      sender: 'Mahesh Yadav',
+      text: 'Plumbing work completed for pool changing area.',
+      time: 'Yesterday',
+      type: 'left',
+      color: 'text-pink-500',
+      avatar: 'mahesh'
+    }
+  ],
+  5: [
+    {
+      id: 1,
+      sender: 'Vikram Patel',
+      text: 'Main bedroom texturing completed. Waiting for client confirmation on finish shade.',
+      time: '21 May',
+      type: 'left',
+      color: 'text-purple-500',
+      avatar: 'painter'
+    }
+  ],
+  6: [
+    {
+      id: 1,
+      sender: 'Admin',
+      text: 'Safety meeting on Monday at 9 AM in central cabin.',
+      time: '20 May',
+      type: 'right'
+    }
+  ],
+  7: [
+    {
+      id: 1,
+      sender: 'Admin',
+      text: 'New CAD drawing files loaded for Lake View project room.',
+      time: '19 May',
+      type: 'right'
+    }
+  ]
+};
+
+export default function Chat() {
+  const [activeChat, setActiveChat] = useState(1);
+  const [activeTab, setActiveTab] = useState('Chats');
+  const [muteToggle, setMuteToggle] = useState(false);
+  const [messageText, setMessageText] = useState('');
+
+  const [chats, setChats] = useState(chatItems);
+  const [messagesMap, setMessagesMap] = useState<Record<number, any[]>>(initialMessagesMap);
+
+  const selectChatRoom = (id: number) => {
+    setActiveChat(id);
+    setChats(chats.map(c => c.id === id ? { ...c, unread: 0 } : c));
+  };
 
   const handleDeleteChat = (id: number) => {
     setChats(chats.filter(c => c.id !== id));
@@ -131,32 +234,48 @@ export default function Chat() {
     setChats(chats.map(c => c.id === id ? { ...c, name: newName } : c));
   };
 
-  const handleDeleteMessage = (id: number) => {
-    setMessages(messages.filter(m => m.id !== id));
+  const handleDeleteMessage = (msgId: number) => {
+    setMessagesMap(prev => ({
+      ...prev,
+      [activeChat]: (prev[activeChat] || []).filter(m => m.id !== msgId)
+    }));
   };
 
-  const handleEditMessage = (id: number, newText: string) => {
-    setMessages(messages.map(m => m.id === id ? { ...m, text: newText } : m));
+  const handleEditMessage = (msgId: number, newText: string) => {
+    setMessagesMap(prev => ({
+      ...prev,
+      [activeChat]: (prev[activeChat] || []).map(m => m.id === msgId ? { ...m, text: newText } : m)
+    }));
   };
 
   const handleSendMessage = () => {
     if (!messageText.trim()) return;
-    setMessages([
-      ...messages,
-      {
-        id: Date.now(),
-        sender: 'Admin',
-        text: messageText,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'right',
-        color: 'text-yellow-500',
-        avatar: 'admin',
-        reactions: undefined,
-        images: undefined
-      }
-    ]);
+    const newMsg = {
+      id: Date.now(),
+      sender: 'Admin',
+      text: messageText,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'right',
+      color: 'text-yellow-500',
+      avatar: 'admin'
+    };
+
+    setMessagesMap(prev => ({
+      ...prev,
+      [activeChat]: [...(prev[activeChat] || []), newMsg]
+    }));
+
+    setChats(prevChats => prevChats.map(c => 
+      c.id === activeChat 
+        ? { ...c, subtitle: `Admin: ${messageText}`, time: newMsg.time } 
+        : c
+    ));
+
     setMessageText('');
   };
+
+  const activeMessages = messagesMap[activeChat] || [];
+  const currentChatObj = chats.find(c => c.id === activeChat) || chats[0];
 
   return (
     <div className="max-w-[1800px] mx-auto pb-6">
@@ -181,8 +300,8 @@ export default function Chat() {
               </div>
             </div>
             
-            <p className="text-[11px] text-gray-400 font-medium text-center mt-3.5 mb-4">
-              Your WhatsApp is connected.
+            <p className="text-[11px] text-gray-400 font-medium text-center mt-3.5 mb-4 leading-normal">
+              Enterprise link active. Broadcasting to 5 site nodes.
             </p>
             
             <button className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2 rounded-xl transition-colors shadow-sm cursor-pointer">
@@ -247,7 +366,7 @@ export default function Chat() {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setActiveChat(item.id)}
+                    onClick={() => selectChatRoom(item.id)}
                     className={`p-4 flex items-start gap-3 cursor-pointer transition-colors group relative ${
                       isActive ? 'bg-gray-50/80 border-l-4 border-[#FFC700]' : 'hover:bg-gray-50/40 border-l-4 border-transparent'
                     }`}
@@ -310,24 +429,33 @@ export default function Chat() {
           {/* Active Chat Header */}
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-gray-100">
-                <img src="https://picsum.photos/seed/11/100/100" alt="Skyline" className="w-full h-full object-cover" />
+              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-gray-100 flex items-center justify-center bg-amber-500 text-white font-bold">
+                {currentChatObj.avatarSeed ? (
+                  <img src={`https://picsum.photos/seed/${currentChatObj.avatarSeed}/100/100`} alt="Active" className="w-full h-full object-cover" />
+                ) : currentChatObj.type === 'megaphone' ? (
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1.0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                )}
               </div>
               <div>
                 <span className="font-bold text-gray-800 text-sm block leading-tight">
-                  {chats.find(c => c.id === activeChat)?.name || 'Skyline Apartments'}
+                  {currentChatObj.name}
                 </span>
                 <div className="flex items-center gap-1 mt-0.5">
-                  {/* Whatsapp icon */}
                   <svg className="w-3 h-3 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.731-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.528 1.977 14.053.953 11.44.953c-5.448 0-9.876 4.372-9.88 9.802-.002 1.776.475 3.51 1.385 5.085l-1.01 3.694 3.79-1.007c1.517.828 3.208 1.272 4.922 1.273zm10.985-7.416c-.3-.15-1.77-.875-2.046-.975-.275-.1-.475-.15-.675.15-.2.3-.775.975-.95 1.175-.175.2-.35.225-.65.075-.3-.15-1.265-.467-2.41-1.485-.89-.795-1.49-1.77-1.665-2.07-.175-.3-.02-.463.13-.613.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.589-.48-.58-.66-.59-.175-.01-.375-.01-.575-.01-.2 0-.525.075-.8.375-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.11 3.22 5.11 4.52.714.31 1.27.495 1.703.633.717.228 1.368.196 1.884.119.574-.085 1.77-.725 2.02-1.425.25-.7.25-1.3 1.75-1.425-.075-.125-.275-.2-.575-.35z" />
                   </svg>
-                  <span className="text-[10px] text-gray-400 font-bold">WhatsApp Group • 28 members</span>
+                  <span className="text-[10px] text-gray-400 font-bold">WhatsApp Group • Active coordination</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mr-3">
               <button className="bg-white border border-gray-200 p-2 rounded-xl text-gray-400 hover:text-gray-600 shadow-sm cursor-pointer shrink-0">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 10.742l-5.492 5.492A1 1 0 003.9 18h16.2a1 1 0 00.707-1.707l-5.492-5.492a2.001 2.001 0 00-2.828 0l-.318.318a2 2 0 01-2.828 0l-.318-.318a2.001 2.001 0 00-2.828 0z" />
@@ -359,7 +487,7 @@ export default function Chat() {
               </span>
             </div>
 
-            {messages.map((msg) => {
+            {activeMessages.map((msg) => {
               const isRight = msg.type === 'right';
               if (isRight) {
                 return (
@@ -401,7 +529,7 @@ export default function Chat() {
 
                         {msg.images && (
                           <div className="grid grid-cols-3 gap-2 my-2">
-                            {msg.images.map((imgName, i) => (
+                            {(msg.images as string[]).map((imgName: string, i: number) => (
                               <div key={i} className="h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
                                 <img src={`https://picsum.photos/seed/${imgName}/150/150`} alt={imgName} className="w-full h-full object-cover" />
                               </div>
@@ -423,7 +551,7 @@ export default function Chat() {
                         </div>
                       </div>
 
-                      {msg.reactions && msg.reactions.map((react, i) => (
+                      {msg.reactions && (msg.reactions as any[]).map((react: any, i: number) => (
                         <div key={i} className="flex items-center gap-1 pl-2">
                           <span className="inline-flex items-center gap-0.5 bg-white border border-gray-100 px-1.5 py-0.5 rounded-full text-[10px] shadow-sm font-semibold text-gray-500 cursor-pointer">
                             {react.emoji} <span className="text-[9px]">{react.count}</span>
@@ -478,17 +606,29 @@ export default function Chat() {
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col items-center">
             <h3 className="text-sm font-bold text-gray-800 self-start mb-5">Group Info</h3>
             
-            <div className="w-20 h-20 rounded-full overflow-hidden border border-gray-100 shadow-sm mb-4">
-              <img src="https://picsum.photos/seed/11/150/150" alt="Skyline" className="w-full h-full object-cover" />
+            <div className="w-20 h-20 rounded-full overflow-hidden border border-gray-100 shadow-sm mb-4 flex items-center justify-center bg-amber-500 text-white font-bold">
+              {currentChatObj.avatarSeed ? (
+                <img src={`https://picsum.photos/seed/${currentChatObj.avatarSeed}/150/150`} alt="Active" className="w-full h-full object-cover" />
+              ) : currentChatObj.type === 'megaphone' ? (
+                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                </svg>
+              ) : (
+                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1.0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              )}
             </div>
 
-            <span className="font-bold text-gray-800 text-sm leading-tight block text-center">Skyline Apartments</span>
+            <span className="font-bold text-gray-800 text-sm leading-tight block text-center">
+              {currentChatObj.name}
+            </span>
             
             <span className="inline-block px-2.5 py-1 rounded-lg border border-green-100 text-green-600 bg-green-50/50 text-[10px] font-bold mt-2.5 mb-1.5 uppercase tracking-wider">
               WhatsApp Group
             </span>
 
-            <span className="text-[10px] text-gray-400 font-bold">28 members</span>
+            <span className="text-[10px] text-gray-400 font-bold">Coordination Site Node</span>
             
             <div className="w-full border-t border-gray-50 my-5"></div>
             
@@ -496,7 +636,7 @@ export default function Chat() {
             <div className="w-full text-left">
               <span className="text-[10px] font-bold text-gray-400 block uppercase tracking-wider mb-2">Group Description</span>
               <p className="text-xs text-gray-600 font-medium leading-relaxed">
-                Official WhatsApp group for Skyline Apartments project updates and coordination.
+                {currentChatObj.description}
               </p>
             </div>
 
@@ -506,9 +646,9 @@ export default function Chat() {
             <div className="w-full text-left">
               <span className="text-[10px] font-bold text-gray-400 block uppercase tracking-wider mb-3">Created By</span>
               <div className="flex items-center gap-2.5">
-                <img src="https://i.pravatar.cc/80?u=ravi" alt="Ravi" className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
+                <img src="https://i.pravatar.cc/80?u=admin" alt="Admin" className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
                 <div>
-                  <span className="text-gray-700 font-bold text-xs block leading-tight">Ravi Kumar</span>
+                  <span className="text-gray-700 font-bold text-xs block leading-tight">Admin System</span>
                   <span className="text-[9px] text-gray-400 font-medium block mt-0.5">10 Jan 2024</span>
                 </div>
               </div>
@@ -520,7 +660,7 @@ export default function Chat() {
             <div className="pb-3.5 flex justify-between items-center cursor-pointer hover:text-gray-800 transition-colors">
               <span className="font-semibold text-gray-500">Media, Links & Docs</span>
               <span className="text-gray-400 font-medium flex items-center">
-                156 
+                48 
                 <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9 5l7 7-7 7" />
                 </svg>
@@ -545,7 +685,7 @@ export default function Chat() {
             <div className="py-3.5 flex justify-between items-center cursor-pointer hover:text-gray-800 transition-colors">
               <span className="font-semibold text-gray-500">Starred Messages</span>
               <span className="text-gray-400 font-medium flex items-center">
-                12 
+                4 
                 <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9 5l7 7-7 7" />
                 </svg>
@@ -555,7 +695,7 @@ export default function Chat() {
             <div className="pt-3.5 flex justify-between items-center cursor-pointer hover:text-gray-800 transition-colors">
               <div>
                 <span className="font-semibold text-gray-500 block leading-none">Group Settings</span>
-                <span className="text-[9px] text-gray-400 font-semibold block mt-1 font-medium leading-none">Manage group settings</span>
+                <span className="text-[9px] text-gray-400 font-semibold block mt-1 leading-none">Manage group settings</span>
               </div>
               <span className="text-gray-400">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

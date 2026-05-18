@@ -1,9 +1,13 @@
 package com.bmginteriors.crm.controller;
 
 import com.bmginteriors.crm.model.Project;
+import com.bmginteriors.crm.model.User;
+import com.bmginteriors.crm.model.UserRole;
 import com.bmginteriors.crm.repository.ProjectRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,16 +19,37 @@ public class ProjectController {
     @Autowired
     private ProjectRepository projectRepository;
 
+    private User getAuthenticatedUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof User) {
+            return (User) principal;
+        }
+        return null;
+    }
+
     @GetMapping
     public List<Project> getAllProjects() {
+        User user = getAuthenticatedUser();
+        if (user != null && user.getRole() == UserRole.CUSTOMER) {
+            String clientName = user.getFullName();
+            return projectRepository.findAll().stream()
+                    .filter(p -> p.getClient() != null && p.getClient().equalsIgnoreCase(clientName))
+                    .toList();
+        }
         return projectRepository.findAll();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Project> getProjectById(@PathVariable Long id) {
-        return projectRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> getProjectById(@PathVariable Long id) {
+        User user = getAuthenticatedUser();
+        return projectRepository.findById(id).map(project -> {
+            if (user != null && user.getRole() == UserRole.CUSTOMER) {
+                if (project.getClient() == null || !project.getClient().equalsIgnoreCase(user.getFullName())) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: You are not authorized to view this project.");
+                }
+            }
+            return ResponseEntity.ok((Object) project);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping

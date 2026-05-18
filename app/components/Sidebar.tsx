@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: 'M4 6h16M4 12h16M4 18h16' },
@@ -18,6 +19,18 @@ const navItems = [
 
 export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  // Filter navigation items based on User Role RBAC
+  const allowedItems = user?.role === 'CUSTOMER'
+    ? ['Dashboard', 'Projects', 'Tasks', 'Documents', 'Chat']
+    : ['Dashboard', 'Projects', 'Tasks', 'Attendance', 'Workers', 'Documents', 'Chat', 'Reports', 'Settings'];
+
+  const filteredNavItems = navItems.filter((item) => allowedItems.includes(item.name));
+
+  const avatarUrl = user?.role === 'ADMIN'
+    ? 'https://i.pravatar.cc/150?u=johndoe'
+    : 'https://i.pravatar.cc/150?u=rajeshmehta';
 
   return (
     <div className="w-64 bg-[#1A1A1A] text-white flex flex-col h-full shrink-0 relative">
@@ -32,7 +45,7 @@ export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
       
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -41,7 +54,7 @@ export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
                 onClick={closeDrawer}
                 className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-[#FFC700] text-black'
+                    ? 'bg-[#FFC700] text-black font-extrabold'
                     : 'text-gray-400 hover:bg-white/5 hover:text-white'
                 }`}
               >
@@ -56,19 +69,25 @@ export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
       </div>
 
       <div className="p-4 border-t border-white/10">
-        <div className="flex items-center p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors border border-white/10">
+        <div className="flex items-center p-3 rounded-xl hover:bg-white/5 transition-colors border border-white/10">
           <img
-            src="https://i.pravatar.cc/150?u=johndoe"
-            alt="John Doe"
-            className="w-10 h-10 rounded-full border border-white/20"
+            src={avatarUrl}
+            alt={user?.fullName || 'User'}
+            className="w-10 h-10 rounded-full border border-white/20 shrink-0"
           />
-          <div className="ml-3 flex-1">
-            <p className="text-sm font-medium text-white">John Doe</p>
-            <p className="text-xs text-gray-400">Admin</p>
+          <div className="ml-3 flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{user?.fullName || 'User'}</p>
+            <p className="text-xs text-gray-400 capitalize">{user?.role?.toLowerCase() || 'Role'}</p>
           </div>
-          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <button
+            onClick={logout}
+            className="ml-2 p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-red-500 transition-colors cursor-pointer shrink-0"
+            title="Log Out"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
