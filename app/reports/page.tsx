@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 
 const stats = [
   {
@@ -107,6 +107,39 @@ const quickAccess = [
 ];
 
 export default function Reports() {
+  const [performanceList, setPerformanceList] = useState(projectsPerformance);
+  const [topWorkersList, setTopWorkersList] = useState(topWorkers);
+
+  const handleEditProjectPerformance = (id: number) => {
+    const item = performanceList.find(p => p.id === id);
+    if (!item) return;
+    const newLocation = prompt('Edit Project Location:', item.location);
+    if (newLocation) {
+      setPerformanceList(performanceList.map(p => p.id === id ? { ...p, location: newLocation } : p));
+    }
+  };
+
+  const handleDeleteProjectPerformance = (id: number) => {
+    if (confirm('Delete this project performance log?')) {
+      setPerformanceList(performanceList.filter(p => p.id !== id));
+    }
+  };
+
+  const handleEditTopWorker = (id: number) => {
+    const item = topWorkersList.find(w => w.id === id);
+    if (!item) return;
+    const newRole = prompt('Edit Worker Role:', item.role);
+    if (newRole) {
+      setTopWorkersList(topWorkersList.map(w => w.id === id ? { ...w, role: newRole } : w));
+    }
+  };
+
+  const handleDeleteTopWorker = (id: number) => {
+    if (confirm('Delete this top worker record?')) {
+      setTopWorkersList(topWorkersList.filter(w => w.id !== id));
+    }
+  };
+
   return (
     <div className="max-w-[1600px] mx-auto space-y-6 pb-6">
       {/* Report Overview Top Row controls */}
@@ -389,10 +422,11 @@ export default function Reports() {
                     <th className="pb-3.5 font-bold">Pending</th>
                     <th className="pb-3.5 font-bold">Overdue</th>
                     <th className="pb-3.5 font-bold">Completion %</th>
+                    <th className="pb-3.5 font-bold text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {projectsPerformance.map((project) => (
+                  {performanceList.map((project) => (
                     <tr key={project.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="py-3">
                         <div className="flex items-center gap-2.5">
@@ -416,6 +450,16 @@ export default function Reports() {
                             <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${project.percent}%` }}></div>
                           </div>
                           <span className="font-bold text-gray-800 text-[10px]">{project.percent}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => handleEditProjectPerformance(project.id)} className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button onClick={() => handleDeleteProjectPerformance(project.id)} className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -451,10 +495,11 @@ export default function Reports() {
                     <th className="pb-3.5 font-bold">Role</th>
                     <th className="pb-3.5 font-bold">Tasks Completed</th>
                     <th className="pb-3.5 font-bold">Completion %</th>
+                    <th className="pb-3.5 font-bold text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {topWorkers.map((worker) => (
+                  {topWorkersList.map((worker) => (
                     <tr key={worker.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="py-3.5">
                         <div className="flex items-center gap-2.5">
@@ -470,6 +515,16 @@ export default function Reports() {
                             <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${worker.percent}%` }}></div>
                           </div>
                           <span className="font-bold text-gray-800 text-xs">{worker.percent}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => handleEditTopWorker(worker.id)} className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button onClick={() => handleDeleteTopWorker(worker.id)} className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
                       </td>
                     </tr>

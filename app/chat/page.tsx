@@ -72,6 +72,92 @@ export default function Chat() {
   const [muteToggle, setMuteToggle] = useState(false);
   const [messageText, setMessageText] = useState('');
 
+  const [chats, setChats] = useState(chatItems);
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      sender: 'Ravi Kumar',
+      text: 'Good morning team! Site inspection tomorrow at 10 AM. Please be prepared.',
+      time: '09:15 AM',
+      type: 'left',
+      color: 'text-green-500',
+      avatar: 'ravi',
+      reactions: [{ emoji: '👍', count: 2 }]
+    },
+    {
+      id: 2,
+      sender: 'Sunil Sharma',
+      text: 'Material delivery completed for Tower A. Check the attached images.',
+      time: '09:20 AM',
+      type: 'left',
+      color: 'text-orange-500',
+      avatar: 'sunil',
+      images: ['cement', 'rods', 'bricks'],
+      reactions: [{ emoji: '👍', count: 3 }]
+    },
+    {
+      id: 3,
+      sender: 'Amit Singh',
+      text: 'Electrical work on 2nd floor in progress.',
+      time: '09:25 AM',
+      type: 'left',
+      color: 'text-blue-500',
+      avatar: 'amit'
+    },
+    {
+      id: 4,
+      sender: 'Admin',
+      text: 'Please ensure all safety measures are followed on site. Share daily progress updates.',
+      time: '09:30 AM',
+      type: 'right'
+    },
+    {
+      id: 5,
+      sender: 'Vikram Patel',
+      text: 'Sure, we will share the update by EOD.',
+      time: '09:32 AM',
+      type: 'left',
+      color: 'text-purple-500',
+      avatar: 'painter',
+      reactions: [{ emoji: '👍', count: 1 }]
+    }
+  ]);
+
+  const handleDeleteChat = (id: number) => {
+    setChats(chats.filter(c => c.id !== id));
+  };
+
+  const handleEditChat = (id: number, newName: string) => {
+    setChats(chats.map(c => c.id === id ? { ...c, name: newName } : c));
+  };
+
+  const handleDeleteMessage = (id: number) => {
+    setMessages(messages.filter(m => m.id !== id));
+  };
+
+  const handleEditMessage = (id: number, newText: string) => {
+    setMessages(messages.map(m => m.id === id ? { ...m, text: newText } : m));
+  };
+
+  const handleSendMessage = () => {
+    if (!messageText.trim()) return;
+    setMessages([
+      ...messages,
+      {
+        id: Date.now(),
+        sender: 'Admin',
+        text: messageText,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'right',
+        color: 'text-yellow-500',
+        avatar: 'admin',
+        reactions: undefined,
+        images: undefined
+      }
+    ]);
+    setMessageText('');
+  };
+
   return (
     <div className="max-w-[1800px] mx-auto pb-6">
       {/* 3 Column Chat Layout */}
@@ -156,13 +242,13 @@ export default function Chat() {
 
             {/* List */}
             <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-              {chatItems.map((item) => {
+              {chats.map((item) => {
                 const isActive = activeChat === item.id;
                 return (
                   <div
                     key={item.id}
                     onClick={() => setActiveChat(item.id)}
-                    className={`p-4 flex items-start gap-3 cursor-pointer transition-colors ${
+                    className={`p-4 flex items-start gap-3 cursor-pointer transition-colors group relative ${
                       isActive ? 'bg-gray-50/80 border-l-4 border-[#FFC700]' : 'hover:bg-gray-50/40 border-l-4 border-transparent'
                     }`}
                   >
@@ -187,15 +273,24 @@ export default function Chat() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center">
                         <span className="font-bold text-gray-800 text-xs truncate leading-tight">{item.name}</span>
-                        <span className="text-[9px] text-gray-400 font-semibold shrink-0 ml-1.5">{item.time}</span>
+                        <span className="text-[9px] text-gray-400 font-semibold shrink-0 ml-1.5 group-hover:opacity-0 transition-opacity">{item.time}</span>
                       </div>
                       <p className="text-[10px] text-gray-500 font-medium truncate mt-1 leading-normal">
                         {item.subtitle}
                       </p>
                     </div>
+
+                    <div className="absolute right-4 top-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
+                      <button className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 transition-colors cursor-pointer" title="Edit" onClick={(e) => { e.stopPropagation(); const name = prompt('Enter new chat room name:', item.name); if(name) handleEditChat(item.id, name); }}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      </button>
+                      <button className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer" title="Delete" onClick={(e) => { e.stopPropagation(); if(confirm('Delete chat room?')) handleDeleteChat(item.id); }}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
                     
                     {item.unread > 0 && (
-                      <span className="w-4 h-4 bg-green-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center shrink-0 self-center">
+                      <span className="w-4 h-4 bg-green-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center shrink-0 self-center group-hover:opacity-0 transition-opacity">
                         {item.unread}
                       </span>
                     )}
@@ -219,7 +314,9 @@ export default function Chat() {
                 <img src="https://picsum.photos/seed/11/100/100" alt="Skyline" className="w-full h-full object-cover" />
               </div>
               <div>
-                <span className="font-bold text-gray-800 text-sm block leading-tight">Skyline Apartments</span>
+                <span className="font-bold text-gray-800 text-sm block leading-tight">
+                  {chats.find(c => c.id === activeChat)?.name || 'Skyline Apartments'}
+                </span>
                 <div className="flex items-center gap-1 mt-0.5">
                   {/* Whatsapp icon */}
                   <svg className="w-3 h-3 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -262,120 +359,82 @@ export default function Chat() {
               </span>
             </div>
 
-            {/* Message 1 (Ravi Kumar - Left) */}
-            <div className="flex items-start gap-2.5 max-w-[80%]">
-              <img src="https://i.pravatar.cc/80?u=ravi" alt="Ravi" className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
-              <div className="space-y-1">
-                <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm relative">
-                  <span className="text-[10px] font-bold text-green-500 block mb-0.5">Ravi Kumar</span>
-                  <p className="text-xs text-gray-700 font-medium leading-relaxed">
-                    Good morning team! Site inspection tomorrow at 10 AM. Please be prepared.
-                  </p>
-                  <span className="text-[9px] text-gray-400 font-semibold block text-right mt-1.5 leading-none">
-                    09:15 AM
-                  </span>
-                </div>
-                
-                {/* Reaction thumbs badge */}
-                <div className="flex items-center gap-1 pl-2">
-                  <span className="inline-flex items-center gap-0.5 bg-white border border-gray-100 px-1.5 py-0.5 rounded-full text-[10px] shadow-sm font-semibold text-gray-500 cursor-pointer">
-                    👍 <span className="text-[9px]">2</span>
-                  </span>
-                </div>
-              </div>
-            </div>
+            {messages.map((msg) => {
+              const isRight = msg.type === 'right';
+              if (isRight) {
+                return (
+                  <div key={msg.id} className="flex justify-end w-full group relative">
+                    <div className="bg-[#E7FAD0] p-3 rounded-2xl rounded-tr-none border border-[#D5ECC2] shadow-sm max-w-[80%] text-right relative pr-10">
+                      <p className="text-xs text-gray-800 font-medium leading-relaxed text-left">
+                        {msg.text}
+                      </p>
+                      <div className="flex items-center justify-end gap-1.5 mt-2 leading-none">
+                        <span className="text-[9px] text-gray-400 font-semibold">{msg.time}</span>
+                        <span className="text-blue-500 font-bold text-xs shrink-0 flex">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                      </div>
 
-            {/* Message 2 (Sunil Sharma - Left) */}
-            <div className="flex items-start gap-2.5 max-w-[80%]">
-              <img src="https://i.pravatar.cc/80?u=sunil" alt="Sunil" className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
-              <div className="space-y-1">
-                <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
-                  <span className="text-[10px] font-bold text-orange-500 block mb-0.5">Sunil Sharma</span>
-                  <p className="text-xs text-gray-700 font-medium leading-relaxed mb-3">
-                    Material delivery completed for Tower A. Check the attached images.
-                  </p>
-                  
-                  {/* Thumbnails */}
-                  <div className="grid grid-cols-3 gap-2 my-2">
-                    <div className="h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
-                      <img src="https://picsum.photos/seed/cement/150/150" alt="Cement" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
-                      <img src="https://picsum.photos/seed/rods/150/150" alt="Rebars" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
-                      <img src="https://picsum.photos/seed/bricks/150/150" alt="Bricks" className="w-full h-full object-cover" />
+                      <div className="absolute right-2 top-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[#E7FAD0] pl-1 rounded">
+                        <button className="text-gray-400 hover:text-blue-600 p-0.5 rounded hover:bg-blue-50/20 transition-colors cursor-pointer" title="Edit" onClick={() => { const text = prompt('Edit message:', msg.text); if(text) handleEditMessage(msg.id, text); }}>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                        <button className="text-gray-400 hover:text-red-600 p-0.5 rounded hover:bg-red-50/20 transition-colors cursor-pointer" title="Delete" onClick={() => { if(confirm('Delete message?')) handleDeleteMessage(msg.id); }}>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
+                );
+              } else {
+                return (
+                  <div key={msg.id} className="flex items-start gap-2.5 max-w-[80%] group relative w-full">
+                    <img src={`https://i.pravatar.cc/80?u=${msg.avatar}`} alt={msg.sender} className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm relative pr-10">
+                        <span className={`text-[10px] font-bold ${msg.color || 'text-green-500'} block mb-0.5`}>{msg.sender}</span>
+                        <p className="text-xs text-gray-700 font-medium leading-relaxed">
+                          {msg.text}
+                        </p>
 
-                  <span className="text-[9px] text-gray-400 font-semibold block text-right mt-1.5 leading-none">
-                    09:20 AM
-                  </span>
-                </div>
-                
-                {/* Reaction badge */}
-                <div className="flex items-center gap-1 pl-2">
-                  <span className="inline-flex items-center gap-0.5 bg-white border border-gray-100 px-1.5 py-0.5 rounded-full text-[10px] shadow-sm font-semibold text-gray-500 cursor-pointer">
-                    👍 <span className="text-[9px]">3</span>
-                  </span>
-                </div>
-              </div>
-            </div>
+                        {msg.images && (
+                          <div className="grid grid-cols-3 gap-2 my-2">
+                            {msg.images.map((imgName, i) => (
+                              <div key={i} className="h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                                <img src={`https://picsum.photos/seed/${imgName}/150/150`} alt={imgName} className="w-full h-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
-            {/* Message 3 (Amit Singh - Left) */}
-            <div className="flex items-start gap-2.5 max-w-[80%]">
-              <img src="https://i.pravatar.cc/80?u=amit" alt="Amit" className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
-              <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
-                <span className="text-[10px] font-bold text-blue-500 block mb-0.5">Amit Singh</span>
-                <p className="text-xs text-gray-700 font-medium leading-relaxed">
-                  Electrical work on 2nd floor in progress.
-                </p>
-                <span className="text-[9px] text-gray-400 font-semibold block text-right mt-1.5 leading-none">
-                  09:25 AM
-                </span>
-              </div>
-            </div>
+                        <span className="text-[9px] text-gray-400 font-semibold block text-right mt-1.5 leading-none">
+                          {msg.time}
+                        </span>
 
-            {/* Message 4 (Right side - Admin/You) */}
-            <div className="flex justify-end w-full">
-              <div className="bg-[#E7FAD0] p-3 rounded-2xl rounded-tr-none border border-[#D5ECC2] shadow-sm max-w-[80%] text-right relative">
-                <p className="text-xs text-gray-800 font-medium leading-relaxed text-left">
-                  Please ensure all safety measures are followed on site. Share daily progress updates.
-                </p>
-                <div className="flex items-center justify-end gap-1.5 mt-2 leading-none">
-                  <span className="text-[9px] text-gray-400 font-semibold">09:30 AM</span>
-                  {/* Double blue ticks */}
-                  <span className="text-blue-500 font-bold text-xs shrink-0 flex">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7M5 13l4 4L19 7" />
-                    </svg>
-                  </span>
-                </div>
-              </div>
-            </div>
+                        <div className="absolute right-2 top-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-1 rounded">
+                          <button className="text-gray-400 hover:text-blue-600 p-0.5 rounded hover:bg-blue-50/20 transition-colors cursor-pointer" title="Edit" onClick={() => { const text = prompt('Edit message:', msg.text); if(text) handleEditMessage(msg.id, text); }}>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button className="text-gray-400 hover:text-red-600 p-0.5 rounded hover:bg-red-50/20 transition-colors cursor-pointer" title="Delete" onClick={() => { if(confirm('Delete message?')) handleDeleteMessage(msg.id); }}>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      </div>
 
-            {/* Message 5 (Vikram Patel - Left) */}
-            <div className="flex items-start gap-2.5 max-w-[80%]">
-              <img src="https://i.pravatar.cc/80?u=painter" alt="Painter" className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
-              <div className="space-y-1">
-                <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
-                  <span className="text-[10px] font-bold text-purple-500 block mb-0.5">Vikram Patel</span>
-                  <p className="text-xs text-gray-700 font-medium leading-relaxed">
-                    Sure, we will share the update by EOD.
-                  </p>
-                  <span className="text-[9px] text-gray-400 font-semibold block text-right mt-1.5 leading-none">
-                    09:32 AM
-                  </span>
-                </div>
-                
-                {/* Reaction badge */}
-                <div className="flex items-center gap-1 pl-2">
-                  <span className="inline-flex items-center gap-0.5 bg-white border border-gray-100 px-1.5 py-0.5 rounded-full text-[10px] shadow-sm font-semibold text-gray-500 cursor-pointer">
-                    👍 <span className="text-[9px]">1</span>
-                  </span>
-                </div>
-              </div>
-            </div>
+                      {msg.reactions && msg.reactions.map((react, i) => (
+                        <div key={i} className="flex items-center gap-1 pl-2">
+                          <span className="inline-flex items-center gap-0.5 bg-white border border-gray-100 px-1.5 py-0.5 rounded-full text-[10px] shadow-sm font-semibold text-gray-500 cursor-pointer">
+                            {react.emoji} <span className="text-[9px]">{react.count}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+            })}
           </div>
 
           {/* Chat Message Input Bar */}
@@ -392,11 +451,15 @@ export default function Chat() {
                 type="text"
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
                 className="flex-1 px-4 py-2.5 border border-gray-100 bg-gray-50 text-xs placeholder-gray-400 focus:bg-white focus:ring-1 focus:ring-[#FFC700] focus:border-gray-200 outline-none rounded-xl transition-all"
                 placeholder="Type a message..."
               />
 
-              <button className="bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer shrink-0">
+              <button 
+                onClick={handleSendMessage}
+                className="bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer shrink-0"
+              >
                 <svg className="w-4.5 h-4.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.731-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.528 1.977 14.053.953 11.44.953c-5.448 0-9.876 4.372-9.88 9.802-.002 1.776.475 3.51 1.385 5.085l-1.01 3.694 3.79-1.007c1.517.828 3.208 1.272 4.922 1.273zm10.985-7.416c-.3-.15-1.77-.875-2.046-.975-.275-.1-.475-.15-.675.15-.2.3-.775.975-.95 1.175-.175.2-.35.225-.65.075-.3-.15-1.265-.467-2.41-1.485-.89-.795-1.49-1.77-1.665-2.07-.175-.3-.02-.463.13-.613.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5s.05-.375-.025-.525c-.075-.15-.675-1.625-.925-2.225-.244-.589-.48-.58-.66-.59-.175-.01-.375-.01-.575-.01-.2 0-.525.075-.8.375-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.11 3.22 5.11 4.52.714.31 1.27.495 1.703.633.717.228 1.368.196 1.884.119.574-.085 1.77-.725 2.02-1.425.25-.7.25-1.3 1.75-1.425-.075-.125-.275-.2-.575-.35z" />
                 </svg>

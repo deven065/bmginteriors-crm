@@ -1,6 +1,8 @@
-import React from 'react';
+'use client';
 
-const projects = [
+import React, { useState } from 'react';
+
+const initialProjects = [
   { id: 1, name: 'Skyline Apartments', loc: 'Mumbai', progress: '75%', status: 'In Progress' },
   { id: 2, name: 'Orchid Commercial', loc: 'Delhi', progress: '40%', status: 'In Progress' },
   { id: 3, name: 'Green Valley Villa', loc: 'Bangalore', progress: '90%', status: 'Near Completion' },
@@ -8,6 +10,23 @@ const projects = [
 ];
 
 export default function RecentProjects() {
+  const [projects, setProjects] = useState(initialProjects);
+
+  const handleEdit = (id: number) => {
+    const item = projects.find(p => p.id === id);
+    if (!item) return;
+    const newName = prompt('Edit Project Name:', item.name);
+    if (newName) {
+      setProjects(projects.map(p => p.id === id ? { ...p, name: newName } : p));
+    }
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm('Delete this project?')) {
+      setProjects(projects.filter(p => p.id !== id));
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
@@ -46,6 +65,15 @@ export default function RecentProjects() {
               }`}>
                 {proj.status}
               </span>
+            </div>
+            
+            <div className="w-16 shrink-0 text-right flex items-center justify-end gap-1.5">
+              <button onClick={() => handleEdit(proj.id)} className="text-gray-400 hover:text-blue-600 p-1.5 rounded hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              </button>
+              <button onClick={() => handleDelete(proj.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
             </div>
           </div>
         ))}

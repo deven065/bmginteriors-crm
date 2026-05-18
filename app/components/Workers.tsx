@@ -1,6 +1,8 @@
-import React from 'react';
+'use client';
 
-const workers = [
+import React, { useState } from 'react';
+
+const initialWorkers = [
   { id: 1, name: 'Ravi Kumar', role: 'Electrician', phone: '+91 98765 43210', status: 'Present', projects: 3 },
   { id: 2, name: 'Sunil Sharma', role: 'Carpenter', phone: '+91 87654 32109', status: 'Present', projects: 2 },
   { id: 3, name: 'Amit Singh', role: 'Civil Supervisor', phone: '+91 76543 21098', status: 'Present', projects: 4 },
@@ -9,6 +11,23 @@ const workers = [
 ];
 
 export default function Workers() {
+  const [workersList, setWorkersList] = useState(initialWorkers);
+
+  const handleEdit = (id: number) => {
+    const item = workersList.find(w => w.id === id);
+    if (!item) return;
+    const newRole = prompt('Edit Worker Role:', item.role);
+    if (newRole) {
+      setWorkersList(workersList.map(w => w.id === id ? { ...w, role: newRole } : w));
+    }
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm('Delete this worker?')) {
+      setWorkersList(workersList.filter(w => w.id !== id));
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
@@ -25,10 +44,11 @@ export default function Workers() {
               <th className="pb-3 font-medium">Phone</th>
               <th className="pb-3 font-medium">Status</th>
               <th className="pb-3 font-medium text-center">Projects</th>
+              <th className="pb-3 font-medium text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {workers.map((worker) => (
+            {workersList.map((worker) => (
               <tr key={worker.id} className="hover:bg-gray-50 transition-colors">
                 <td className="py-3">
                   <div className="flex items-center gap-3">
@@ -44,6 +64,16 @@ export default function Workers() {
                   </span>
                 </td>
                 <td className="py-3 text-center text-gray-800 font-medium">{worker.projects}</td>
+                <td className="py-3 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => handleEdit(worker.id)} className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                    <button onClick={() => handleDelete(worker.id)} className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -51,7 +81,7 @@ export default function Workers() {
       </div>
       
       <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row gap-4 items-center justify-between text-xs text-gray-500 mt-auto">
-        <span>Showing 1 to 5 of 120 workers</span>
+        <span>Showing 1 to {workersList.length} of 120 workers</span>
         <div className="flex items-center gap-1">
           <button className="w-5 h-5 flex items-center justify-center rounded border border-gray-200 hover:bg-gray-50 text-gray-400">&lt;</button>
           <button className="w-5 h-5 flex items-center justify-center rounded bg-[#FFC700] text-black font-medium">1</button>

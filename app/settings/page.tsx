@@ -39,6 +39,44 @@ export default function Settings() {
   const [workEndTime, setWorkEndTime] = useState('06:00 PM');
   const [defaultProjectStatus, setDefaultProjectStatus] = useState('Planning');
 
+  // Roles State
+  const [roles, setRoles] = useState([
+    { id: 1, title: 'Admin (John Doe)', adminControls: true, manageWorkers: true, approveBlueprints: true, exportReports: true, color: 'bg-red-500' },
+    { id: 2, title: 'Site Manager (Ravi)', adminControls: false, manageWorkers: true, approveBlueprints: true, exportReports: true, color: 'bg-[#FFC700]' },
+    { id: 3, title: 'Lead Designer (Amit)', adminControls: false, manageWorkers: false, approveBlueprints: true, exportReports: true, color: 'bg-blue-500' },
+    { id: 4, title: 'Site Supervisor', adminControls: false, manageWorkers: true, approveBlueprints: false, exportReports: false, color: 'bg-gray-400' }
+  ]);
+
+  const handleDeleteRole = (id: number) => {
+    setRoles(roles.filter(r => r.id !== id));
+  };
+
+  const handleEditRole = (id: number) => {
+    const roleToEdit = roles.find(r => r.id === id);
+    if (!roleToEdit) return;
+    const newTitle = prompt('Enter new role title:', roleToEdit.title);
+    if (newTitle) {
+      setRoles(roles.map(r => r.id === id ? { ...r, title: newTitle } : r));
+    }
+  };
+
+  const handleAddRole = () => {
+    const title = prompt('Enter role title:');
+    if (!title) return;
+    setRoles([
+      ...roles,
+      {
+        id: Date.now(),
+        title,
+        adminControls: confirm('Enable Admin Controls?'),
+        manageWorkers: confirm('Enable Manage Workers?'),
+        approveBlueprints: confirm('Enable Approve Blueprints?'),
+        exportReports: confirm('Enable Export Reports?'),
+        color: 'bg-indigo-500'
+      }
+    ]);
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setSaveSuccess(true);
@@ -520,49 +558,32 @@ export default function Settings() {
                           <th className="p-4 font-bold text-center">Manage Workers</th>
                           <th className="p-4 font-bold text-center">Approve bluePrints</th>
                           <th className="p-4 font-bold text-center">Export Reports</th>
+                          <th className="p-4 font-bold text-center">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50 font-bold">
-                        <tr>
-                          <td className="p-4 text-gray-800 font-extrabold text-xs flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                            Admin (John Doe)
-                          </td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                        </tr>
-                        <tr>
-                          <td className="p-4 text-gray-800 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[#FFC700]"></span>
-                            Site Manager (Ravi)
-                          </td>
-                          <td className="p-4 text-center text-gray-300">— Disabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                        </tr>
-                        <tr>
-                          <td className="p-4 text-gray-800 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                            Lead Designer (Amit)
-                          </td>
-                          <td className="p-4 text-center text-gray-300">— Disabled</td>
-                          <td className="p-4 text-center text-gray-300">— Disabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                        </tr>
-                        <tr>
-                          <td className="p-4 text-gray-800 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                            Site Supervisor
-                          </td>
-                          <td className="p-4 text-center text-gray-300">— Disabled</td>
-                          <td className="p-4 text-center">✓ Enabled</td>
-                          <td className="p-4 text-center text-gray-300">— Disabled</td>
-                          <td className="p-4 text-center text-gray-300">— Disabled</td>
-                        </tr>
+                        {roles.map((role) => (
+                          <tr key={role.id}>
+                            <td className="p-4 text-gray-800 font-extrabold text-xs flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${role.color}`}></span>
+                              {role.title}
+                            </td>
+                            <td className="p-4 text-center">{role.adminControls ? '✓ Enabled' : '— Disabled'}</td>
+                            <td className="p-4 text-center">{role.manageWorkers ? '✓ Enabled' : '— Disabled'}</td>
+                            <td className="p-4 text-center">{role.approveBlueprints ? '✓ Enabled' : '— Disabled'}</td>
+                            <td className="p-4 text-center">{role.exportReports ? '✓ Enabled' : '— Disabled'}</td>
+                            <td className="p-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button type="button" onClick={() => handleEditRole(role.id)} className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </button>
+                                <button type="button" onClick={() => handleDeleteRole(role.id)} className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -572,7 +593,7 @@ export default function Settings() {
                       <span className="text-xs font-bold text-gray-700 block">Add New Customized Security Role</span>
                       <span className="text-[10px] text-gray-400 font-medium block mt-0.5">Customize specific dashboards for temporary contractors.</span>
                     </div>
-                    <button type="button" className="bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl text-xs font-bold text-gray-700 shadow-sm cursor-pointer shrink-0">
+                    <button type="button" onClick={handleAddRole} className="bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl text-xs font-bold text-gray-700 shadow-sm cursor-pointer shrink-0">
                       + Configure Role
                     </button>
                   </div>
