@@ -34,13 +34,12 @@ export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
 
   return (
     <div className="w-64 bg-[#1A1A1A] text-white flex flex-col h-full shrink-0 relative">
-      <div className="p-6 flex flex-col items-center border-b border-white/10">
-        <div className="text-[#FFC700] text-5xl font-bold tracking-tighter mb-1 relative">
-          <span className="relative z-10">BMG</span>
-          <div className="absolute inset-0 bg-[#FFC700]/20 blur-md z-0 rounded-full"></div>
-        </div>
-        <div className="text-white text-[10px] tracking-[0.2em] uppercase">Interiors</div>
-        <div className="text-[#FFC700] text-[6px] tracking-[0.1em] mt-1">WE DESIGN YOUR DREAMS</div>
+      <div className="p-6 flex flex-col items-center border-b border-white/10 select-none">
+        <img 
+          src="/bmg-logo-original.png" 
+          alt="BMG Interiors" 
+          className="h-16 w-auto object-contain hover:brightness-110 transition-all duration-300"
+        />
       </div>
       
       <div className="flex-1 overflow-y-auto py-4">
