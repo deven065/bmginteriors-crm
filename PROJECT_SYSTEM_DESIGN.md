@@ -263,6 +263,326 @@ Observability:
 - Current observability is mostly platform-level logs.
 - Future production hardening should add audit logs for create/update/delete operations.
 
+### 2.8 Flowcharts and Mermaid Designs
+
+#### Overall System Architecture
+
+```mermaid
+flowchart TD
+  U[Admin or Customer User] --> B[Browser]
+  B --> N[Next.js App Router]
+  N --> P[proxy.ts Session Refresh]
+  P --> SSR[Supabase SSR Client]
+  N --> AC[AuthContext]
+  AC --> SBAuth[Supabase Auth]
+  N --> Pages[CRM Pages]
+  Pages --> Data[crmData.ts Data Access Layer]
+  Data --> DB[(Supabase Postgres)]
+  DB --> RLS[Row Level Security Policies]
+  RLS --> Tables[CRM Tables]
+
+  Tables --> Profiles[profiles]
+  Tables --> Projects[projects]
+  Tables --> Tasks[tasks]
+  Tables --> Workers[workers]
+  Tables --> Attendance[attendance]
+  Tables --> Documents[documents]
+```
+
+#### Authentication and Signup Flow
+
+```mermaid
+flowchart TD
+  Start([User opens CRM]) --> HasSession{Existing Supabase session?}
+  HasSession -- No --> LoginView[Show LoginView]
+  HasSession -- Yes --> LoadProfile[Load profile from public.profiles]
+
+  LoginView --> Mode{User action}
+  Mode -- Sign In --> Credentials[Enter username/email and password]
+  Credentials --> SignIn[Supabase signInWithPassword]
+  SignIn --> SignInOk{Credentials valid?}
+  SignInOk -- No --> AuthError[Show auth error]
+  SignInOk -- Yes --> LoadProfile
+
+  Mode -- Sign Up --> SignupForm[Enter full name, email, password, requested role]
+  SignupForm --> SupaSignup[Supabase auth.signUp]
+  SupaSignup --> Trigger[handle_new_user trigger]
+  Trigger --> ProfileCreated[Create profile with role CUSTOMER and requested_role]
+  ProfileCreated --> ConfirmEmail{Email confirmation enabled?}
+  ConfirmEmail -- Yes --> AwaitConfirm[Ask user to confirm email]
+  ConfirmEmail -- No --> LoadProfile
+
+  LoadProfile --> RoleCheck{profiles.role}
+  RoleCheck -- ADMIN --> AdminShell[Render full CRM]
+  RoleCheck -- CUSTOMER --> CustomerShell[Render restricted customer CRM]
+```
+
+#### Role-Based Authorization Decision Flow
+
+```mermaid
+flowchart TD
+  Query[User queries CRM data] --> RLSStart[Supabase RLS policy runs]
+  RLSStart --> IsAdmin{is_admin = true?}
+  IsAdmin -- Yes --> AllowAll[Allow read/write based on admin policy]
+  IsAdmin -- No --> Resource{Resource type}
+
+  Resource -- Project --> ProjectScope{Project assigned to user?}
+  Resource -- Task --> TaskScope{Task project visible to user?}
+  Resource -- Document --> DocScope{Document project visible to user?}
+  Resource -- Attendance --> AttendanceScope{Attendance project visible to user?}
+  Resource -- Worker --> DenyWorker[Deny customer worker access]
+
+  ProjectScope -- Yes --> AllowRead[Allow read]
+  TaskScope -- Yes --> AllowRead
+  DocScope -- Yes --> AllowRead
+  AttendanceScope -- Yes --> AllowRead
+
+  ProjectScope -- No --> Deny[Deny]
+  TaskScope -- No --> Deny
+  DocScope -- No --> Deny
+  AttendanceScope -- No --> Deny
+```
+
+#### CRUD Data Flow
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Page as CRM Page
+  participant Data as crmData.ts
+  participant Client as Supabase Browser Client
+  participant RLS as Supabase RLS
+  participant DB as Supabase Postgres
+
+  User->>Page: Click create/update/delete
+  Page->>Data: Call typed helper
+  Data->>Client: Build Supabase query
+  Client->>RLS: Send request with auth JWT
+  RLS->>DB: Allow query if policy passes
+  DB-->>RLS: Return rows or mutation result
+  RLS-->>Client: Return allowed response
+  Client-->>Data: data/error
+  Data-->>Page: mapped CRM object or error
+  Page-->>User: Update UI or show error
+```
+
+#### Database ERD
+
+```mermaid
+erDiagram
+  AUTH_USERS ||--|| PROFILES : creates
+  PROFILES ||--o{ PROJECTS : assigned_as_client
+  PROJECTS ||--o{ TASKS : contains
+  PROJECTS ||--o{ DOCUMENTS : has
+  PROJECTS ||--o{ ATTENDANCE : scopes
+  WORKERS ||--o{ ATTENDANCE : records
+
+  AUTH_USERS {
+    uuid id PK
+    text email
+  }
+
+  PROFILES {
+    uuid id PK
+    text username
+    text full_name
+    text role
+    text requested_role
+    text phone
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  PROJECTS {
+    bigint id PK
+    text name
+    text type
+    text location
+    text status
+    integer percentage
+    uuid client_user_id FK
+    text client_name
+    date start_date
+    date deadline
+    numeric budget
+    numeric spent
+  }
+
+  TASKS {
+    bigint id PK
+    text title
+    bigint project_id FK
+    text project_name
+    text assigned_to
+    date due_date
+    text status
+    text priority
+    integer progress
+  }
+
+  WORKERS {
+    bigint id PK
+    text name
+    text emp_id
+    text role
+    text phone
+    text email
+    text site
+    text status
+  }
+
+  ATTENDANCE {
+    bigint id PK
+    bigint worker_id FK
+    text worker_name
+    text project
+    text check_in
+    text check_out
+    date work_date
+    text status
+  }
+
+  DOCUMENTS {
+    bigint id PK
+    text name
+    text project
+    text category
+    text file_type
+    text size
+    text url
+  }
+```
+
+#### Deployment Flow
+
+```mermaid
+flowchart LR
+  Dev[Developer] --> Git[Git Repository]
+  Git --> CI[CI or Hosting Build]
+  CI --> Install[npm install]
+  Install --> Lint[npm run lint]
+  Lint --> Build[npm run build]
+  Build --> Deploy[Deploy Next.js App]
+  Deploy --> Env[Production Environment Variables]
+  Env --> Runtime[Next.js Runtime]
+  Runtime --> Supabase[Supabase Project]
+  Supabase --> Migration[Run SQL Migration]
+  Migration --> Verify[Verify Admin and Customer Access]
+```
+
+### 2.9 Low-Level Design (LLD)
+
+The low-level design describes how the important modules interact inside the application code.
+
+#### AuthContext LLD
+
+```mermaid
+flowchart TD
+  AuthProvider[AuthProvider] --> Init[useEffect initialize session]
+  Init --> GetSession[supabase.auth.getSession]
+  GetSession --> SessionFound{Session found?}
+  SessionFound -- No --> Anonymous[Set user null and loading false]
+  SessionFound -- Yes --> LoadProfile[loadProfile user id and email]
+  LoadProfile --> ProfilesQuery[profiles select id username full_name role]
+  ProfilesQuery --> UserState[Set User object in React state]
+
+  AuthProvider --> Login[login username password]
+  Login --> ResolveEmail[resolveLoginEmail]
+  ResolveEmail --> SignIn[signInWithPassword]
+  SignIn --> LoadProfile
+
+  AuthProvider --> Signup[signUp input]
+  Signup --> SignUpCall[auth.signUp with metadata]
+  SignUpCall --> SignupResult[Return confirmation or active session result]
+
+  AuthProvider --> Logout[logout]
+  Logout --> SupaLogout[supabase.auth.signOut]
+  SupaLogout --> Anonymous
+```
+
+AuthContext public contract:
+
+| Method | Purpose | Result |
+| --- | --- | --- |
+| `login(username, password)` | Signs in with username/email and password | Loads profile and sets `user` |
+| `signUp(input)` | Creates Supabase Auth user with requested role metadata | Creates account and may require email confirmation |
+| `logout()` | Ends Supabase session | Clears local user state |
+| `useAuth()` | Exposes auth state to components | Returns `user`, `loading`, `error`, auth methods |
+
+#### Data Access LLD
+
+```mermaid
+flowchart TD
+  Page[Page Component] --> Helper[crmData helper function]
+  Helper --> Payload[Map UI object to DB payload]
+  Payload --> Query[Supabase query]
+  Query --> Raise{error?}
+  Raise -- Yes --> Throw[Throw Error to page]
+  Raise -- No --> RowMap[Map DB row to UI object]
+  RowMap --> State[Page updates React state]
+```
+
+Data helpers:
+
+| Entity | Read | Create | Update | Delete |
+| --- | --- | --- | --- | --- |
+| Projects | `listProjects` | `saveProject` | `saveProject` | `deleteProject` |
+| Tasks | `listTasks` | `createTask` | `updateTask` | `deleteTask` |
+| Workers | `listWorkers` | `createWorker` | `updateWorker` | `deleteWorker` |
+| Attendance | `listAttendance` | `createAttendance` | `updateAttendance` | `deleteAttendance` |
+| Documents | `listDocuments` | `createDocument` | `updateDocument` | `deleteDocument` |
+
+#### Page-Level LLD
+
+Each operational page follows the same implementation pattern:
+
+1. Initialize local React state from static placeholder data.
+2. Load Supabase data in `useEffect`.
+3. Render loading/error states.
+4. Allow create/edit/delete actions.
+5. Call `crmData.ts` helper.
+6. Update local React state after successful response.
+7. Let Supabase RLS reject unauthorized operations.
+
+```mermaid
+flowchart TD
+  Mount[Page mounts] --> Seed[Render seed data immediately]
+  Seed --> Fetch[Fetch Supabase records]
+  Fetch --> FetchOk{Fetch success?}
+  FetchOk -- Yes --> Replace[Replace seed data with live data]
+  FetchOk -- No --> Error[Show error banner]
+  Replace --> UserAction{User action}
+  UserAction -- Create --> CreateCall[create helper]
+  UserAction -- Edit --> UpdateCall[update helper]
+  UserAction -- Delete --> DeleteCall[delete helper]
+  CreateCall --> SyncState[Sync local state]
+  UpdateCall --> SyncState
+  DeleteCall --> SyncState
+```
+
+#### RLS Helper LLD
+
+```mermaid
+flowchart TD
+  Policy[RLS Policy] --> AdminCheck[public.is_admin]
+  AdminCheck --> AdminResult{Admin?}
+  AdminResult -- Yes --> Allow[Allow]
+  AdminResult -- No --> ProfileName[public.current_profile_name]
+  ProfileName --> CanView[public.can_view_project]
+  CanView --> Match{client_user_id or client_name matches?}
+  Match -- Yes --> AllowRead[Allow read]
+  Match -- No --> DenyAccess[Deny access]
+```
+
+RLS helper functions:
+
+| Function | Responsibility |
+| --- | --- |
+| `is_admin()` | Checks whether current authenticated profile has `ADMIN` role |
+| `current_profile_name()` | Returns current user's profile name for project matching |
+| `current_profile_role()` | Reads role safely for profile update checks |
+| `can_view_project()` | Decides whether user can view a customer-scoped project |
+
 Primary application routes:
 
 - `/` - Executive dashboard.
