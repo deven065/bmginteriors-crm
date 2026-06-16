@@ -1,6 +1,26 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
+
+type MessageSide = 'left' | 'right';
+
+interface Reaction {
+  emoji: string;
+  count: number;
+}
+
+interface ChatMessage {
+  id: number;
+  sender: string;
+  text: string;
+  time: string;
+  type: MessageSide;
+  color?: string;
+  avatar?: string;
+  images?: string[];
+  reactions?: Reaction[];
+}
 
 const chatItems = [
   {
@@ -73,7 +93,7 @@ const chatItems = [
   },
 ];
 
-const initialMessagesMap: Record<number, any[]> = {
+const initialMessagesMap: Record<number, ChatMessage[]> = {
   1: [
     {
       id: 1,
@@ -219,7 +239,7 @@ export default function Chat() {
   const [messageText, setMessageText] = useState('');
 
   const [chats, setChats] = useState(chatItems);
-  const [messagesMap, setMessagesMap] = useState<Record<number, any[]>>(initialMessagesMap);
+  const [messagesMap, setMessagesMap] = useState<Record<number, ChatMessage[]>>(initialMessagesMap);
 
   const selectChatRoom = (id: number) => {
     setActiveChat(id);
@@ -250,7 +270,7 @@ export default function Chat() {
 
   const handleSendMessage = () => {
     if (!messageText.trim()) return;
-    const newMsg = {
+    const newMsg: ChatMessage = {
       id: Date.now(),
       sender: 'Admin',
       text: messageText,
@@ -372,8 +392,8 @@ export default function Chat() {
                     }`}
                   >
                     {item.avatarSeed ? (
-                      <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-gray-100 shadow-sm">
-                        <img src={`https://picsum.photos/seed/${item.avatarSeed}/100/100`} alt={item.name} className="w-full h-full object-cover" />
+                      <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-gray-100 shadow-sm">
+                        <Image src={`https://picsum.photos/seed/${item.avatarSeed}/100/100`} alt={item.name} fill sizes="40px" className="object-cover" />
                       </div>
                     ) : item.type === 'megaphone' ? (
                       <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
@@ -429,9 +449,9 @@ export default function Chat() {
           {/* Active Chat Header */}
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-gray-100 flex items-center justify-center bg-amber-500 text-white font-bold">
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-gray-100 flex items-center justify-center bg-amber-500 text-white font-bold">
                 {currentChatObj.avatarSeed ? (
-                  <img src={`https://picsum.photos/seed/${currentChatObj.avatarSeed}/100/100`} alt="Active" className="w-full h-full object-cover" />
+                  <Image src={`https://picsum.photos/seed/${currentChatObj.avatarSeed}/100/100`} alt="Active" fill sizes="40px" className="object-cover" />
                 ) : currentChatObj.type === 'megaphone' ? (
                   <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -519,7 +539,7 @@ export default function Chat() {
               } else {
                 return (
                   <div key={msg.id} className="flex items-start gap-2.5 max-w-[80%] group relative w-full">
-                    <img src={`https://i.pravatar.cc/80?u=${msg.avatar}`} alt={msg.sender} className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
+                    <Image src={`https://i.pravatar.cc/80?u=${msg.avatar}`} alt={msg.sender} width={32} height={32} className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
                     <div className="space-y-1 flex-1 min-w-0">
                       <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm relative pr-10">
                         <span className={`text-[10px] font-bold ${msg.color || 'text-green-500'} block mb-0.5`}>{msg.sender}</span>
@@ -529,9 +549,9 @@ export default function Chat() {
 
                         {msg.images && (
                           <div className="grid grid-cols-3 gap-2 my-2">
-                            {(msg.images as string[]).map((imgName: string, i: number) => (
-                              <div key={i} className="h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
-                                <img src={`https://picsum.photos/seed/${imgName}/150/150`} alt={imgName} className="w-full h-full object-cover" />
+                            {msg.images.map((imgName, i: number) => (
+                              <div key={i} className="relative h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                                <Image src={`https://picsum.photos/seed/${imgName}/150/150`} alt={imgName} fill sizes="64px" className="object-cover" />
                               </div>
                             ))}
                           </div>
@@ -551,7 +571,7 @@ export default function Chat() {
                         </div>
                       </div>
 
-                      {msg.reactions && (msg.reactions as any[]).map((react: any, i: number) => (
+                      {msg.reactions && msg.reactions.map((react, i: number) => (
                         <div key={i} className="flex items-center gap-1 pl-2">
                           <span className="inline-flex items-center gap-0.5 bg-white border border-gray-100 px-1.5 py-0.5 rounded-full text-[10px] shadow-sm font-semibold text-gray-500 cursor-pointer">
                             {react.emoji} <span className="text-[9px]">{react.count}</span>
@@ -606,9 +626,9 @@ export default function Chat() {
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col items-center">
             <h3 className="text-sm font-bold text-gray-800 self-start mb-5">Group Info</h3>
             
-            <div className="w-20 h-20 rounded-full overflow-hidden border border-gray-100 shadow-sm mb-4 flex items-center justify-center bg-amber-500 text-white font-bold">
+            <div className="relative w-20 h-20 rounded-full overflow-hidden border border-gray-100 shadow-sm mb-4 flex items-center justify-center bg-amber-500 text-white font-bold">
               {currentChatObj.avatarSeed ? (
-                <img src={`https://picsum.photos/seed/${currentChatObj.avatarSeed}/150/150`} alt="Active" className="w-full h-full object-cover" />
+                <Image src={`https://picsum.photos/seed/${currentChatObj.avatarSeed}/150/150`} alt="Active" fill sizes="80px" className="object-cover" />
               ) : currentChatObj.type === 'megaphone' ? (
                 <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -646,7 +666,7 @@ export default function Chat() {
             <div className="w-full text-left">
               <span className="text-[10px] font-bold text-gray-400 block uppercase tracking-wider mb-3">Created By</span>
               <div className="flex items-center gap-2.5">
-                <img src="https://i.pravatar.cc/80?u=admin" alt="Admin" className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
+                <Image src="https://i.pravatar.cc/80?u=admin" alt="Admin" width={28} height={28} className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
                 <div>
                   <span className="text-gray-700 font-bold text-xs block leading-tight">Admin System</span>
                   <span className="text-[9px] text-gray-400 font-medium block mt-0.5">10 Jan 2024</span>

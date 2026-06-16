@@ -1,6 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
+import {
+  createTask,
+  deleteTask,
+  listTasks,
+  updateTask,
+  type CrmTask,
+} from '../lib/crmData';
 
 const stats = [
   {
@@ -245,14 +253,77 @@ const tasksData = [
 ];
 
 const tabs = ['All Tasks', 'In Progress', 'Pending', 'Completed', 'Overdue'];
+type TaskView = (typeof tasksData)[number];
+
+function titleCase(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatDisplayDate(value: string) {
+  if (!value) return 'TBD';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function toTaskView(task: CrmTask): TaskView {
+  const seed = task.id || task.title;
+
+  return {
+    id: task.id,
+    name: task.title,
+    subtitle: task.subtitle || task.type || 'Task',
+    project: task.project || 'Unassigned Project',
+    location: task.location || 'Site',
+    projSeed: String(seed),
+    assignee: task.assignedTo || 'Unassigned',
+    role: task.assigneeRole || 'Team',
+    avatar: task.avatarSeed || task.assignedTo || task.title,
+    priority: titleCase(task.priority || 'Medium'),
+    status: task.status || 'Pending',
+    dueDate: formatDisplayDate(task.dueDate),
+    dueSubtitle: task.status === 'Completed' ? 'Completed' : task.daysRemaining ? `${task.daysRemaining} days left` : 'Scheduled',
+    progress: `${task.progress || 0}%`,
+    iconColor: 'bg-blue-50 text-blue-500',
+    icon: tasksData[0].icon,
+  };
+}
 
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState('All Tasks');
+  const [tasks, setTasks] = useState<TaskView[]>(tasksData);
   const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTasks = async () => {
+      try {
+        const data = await listTasks();
+        if (!cancelled) setTasks(data.map(toTaskView));
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load Supabase tasks.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void loadTasks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedTasks(tasksData.map((task) => task.id));
+      setSelectedTasks(tasks.map((task) => task.id));
     } else {
       setSelectedTasks([]);
     }
@@ -266,7 +337,59 @@ export default function Tasks() {
     }
   };
 
-  const filteredTasks = tasksData.filter((task) => {
+  const handleCreateTask = async () => {
+    const title = prompt('Task name:');
+    if (!title) return;
+
+    try {
+      const created = await createTask({
+        title,
+        subtitle: prompt('Task area/subtitle:', '') || '',
+        project: prompt('Project:', '') || '',
+        assignedTo: prompt('Assigned to:', '') || 'Unassigned',
+        dueDate: '',
+        status: 'Pending',
+        priority: 'MEDIUM',
+        progress: 0,
+        daysRemaining: 0,
+        type: 'Task',
+        location: '',
+        assigneeRole: '',
+        avatarSeed: title,
+      });
+      setTasks((current) => [toTaskView(created), ...current]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create task.');
+    }
+  };
+
+  const handleEditTask = async (task: TaskView) => {
+    const title = prompt('Edit task name:', task.name);
+    if (!title) return;
+
+    const status = prompt('Edit status:', task.status) || task.status;
+
+    try {
+      await updateTask(task.id, { title, status });
+      setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, name: title, status } : item)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update task.');
+    }
+  };
+
+  const handleDeleteTask = async (id: number) => {
+    if (!confirm('Delete this task?')) return;
+
+    try {
+      await deleteTask(id);
+      setTasks((current) => current.filter((task) => task.id !== id));
+      setSelectedTasks((current) => current.filter((taskId) => taskId !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete task.');
+    }
+  };
+
+  const filteredTasks = tasks.filter((task) => {
     if (activeTab === 'All Tasks') return true;
     return task.status === activeTab;
   });
@@ -309,7 +432,7 @@ export default function Tasks() {
 
         {/* Actions stacked on the far right */}
         <div className="lg:col-span-2 flex flex-row lg:flex-col justify-between gap-3 shrink-0">
-          <button className="flex-1 bg-[#FFC700] hover:bg-[#e6b400] text-black text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center transition-colors shadow-sm cursor-pointer">
+          <button onClick={handleCreateTask} className="flex-1 bg-[#FFC700] hover:bg-[#e6b400] text-black text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center transition-colors shadow-sm cursor-pointer">
             <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -324,6 +447,12 @@ export default function Tasks() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
+          {error}
+        </div>
+      )}
 
       {/* Tabs and Dropdown Filters Row */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center border-b border-gray-200 pb-3 gap-4">
@@ -385,7 +514,7 @@ export default function Tasks() {
                   <input 
                     type="checkbox" 
                     onChange={handleSelectAll}
-                    checked={selectedTasks.length === tasksData.length}
+                    checked={tasks.length > 0 && selectedTasks.length === tasks.length}
                     className="w-4 h-4 rounded text-[#FFC700] border-gray-300 focus:ring-[#FFC700] cursor-pointer" 
                   />
                 </th>
@@ -423,8 +552,8 @@ export default function Tasks() {
                   </td>
                   <td className="py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg shrink-0 overflow-hidden border border-gray-100">
-                        <img src={`https://picsum.photos/seed/${task.projSeed}/100/100`} alt={task.project} className="w-full h-full object-cover" />
+                      <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden border border-gray-100">
+                        <Image src={`https://picsum.photos/seed/${task.projSeed}/100/100`} alt={task.project} fill sizes="36px" className="object-cover" />
                       </div>
                       <div>
                         <span className="font-bold text-gray-800 text-xs block leading-tight">{task.project}</span>
@@ -434,7 +563,7 @@ export default function Tasks() {
                   </td>
                   <td className="py-4">
                     <div className="flex items-center gap-2.5">
-                      <img src={`https://i.pravatar.cc/80?u=${task.avatar}`} alt={task.assignee} className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
+                      <Image src={`https://i.pravatar.cc/80?u=${task.avatar}`} alt={task.assignee} width={28} height={28} className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
                       <div>
                         <span className="text-gray-700 font-bold text-xs block leading-tight">{task.assignee}</span>
                         <span className="text-[9px] text-gray-400 font-medium block mt-0.5">{task.role}</span>
@@ -487,12 +616,12 @@ export default function Tasks() {
                   </td>
                   <td className="py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
+                      <button onClick={() => handleEditTask(task)} className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                      <button onClick={() => handleDeleteTask(task.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -507,7 +636,7 @@ export default function Tasks() {
         
         {/* Pagination */}
         <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col sm:flex-row gap-4 items-center justify-between text-xs text-gray-400 font-semibold">
-          <span>Showing 1 to {filteredTasks.length} of 126 tasks</span>
+          <span>{loading ? 'Loading Supabase tasks...' : `Showing 1 to ${filteredTasks.length} of ${tasks.length} tasks`}</span>
           <div className="flex items-center gap-1.5">
             <button className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-400 transition-colors cursor-pointer">&lt;</button>
             <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#FFC700] text-black font-bold shadow-sm transition-colors cursor-pointer">1</button>

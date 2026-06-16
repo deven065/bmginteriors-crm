@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 const stats = [
   {
@@ -430,8 +431,8 @@ export default function Reports() {
                     <tr key={project.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-gray-100">
-                            <img src={`https://picsum.photos/seed/${project.avatarSeed}/80/80`} alt={project.name} className="w-full h-full object-cover" />
+                          <div className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-gray-100">
+                            <Image src={`https://picsum.photos/seed/${project.avatarSeed}/80/80`} alt={project.name} fill sizes="28px" className="object-cover" />
                           </div>
                           <div>
                             <span className="font-bold text-gray-800 block leading-tight">{project.name}</span>
@@ -503,7 +504,7 @@ export default function Reports() {
                     <tr key={worker.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <img src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
+                          <Image src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} width={28} height={28} className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
                           <span className="font-bold text-gray-800 text-xs block leading-tight">{worker.name}</span>
                         </div>
                       </td>

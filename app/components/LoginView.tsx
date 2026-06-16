@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginView() {
@@ -9,6 +10,7 @@ export default function LoginView() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const enableDemoAccess = process.env.NEXT_PUBLIC_ENABLE_DEMO_ACCESS === 'true';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,10 +38,13 @@ export default function LoginView() {
       <div className="hidden lg:block lg:w-[55%] xl:w-[60%] relative h-screen overflow-hidden shrink-0 select-none">
         
         {/* Underlay Image */}
-        <img 
+        <Image
           src="/luxury_interior_login.png" 
           alt="BMG Interiors Signature Showpiece" 
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[20000ms] ease-out hover:scale-105"
+          fill
+          sizes="(min-width: 1024px) 60vw, 100vw"
+          className="object-cover transition-transform duration-[20000ms] ease-out hover:scale-105"
+          priority
         />
         
         {/* Soft elegant gradient overlays */}
@@ -103,9 +108,11 @@ export default function LoginView() {
         
         {/* Branding Logomark */}
         <div className="relative z-10 flex flex-col items-center lg:items-start select-none">
-          <img 
+          <Image
             src="/bmg-logo-original.png" 
             alt="BMG Interiors" 
+            width={180}
+            height={112}
             className="h-28 w-auto object-contain hover:brightness-110 transition-all duration-300"
           />
         </div>
@@ -237,33 +244,35 @@ export default function LoginView() {
             </button>
           </form>
 
-          {/* Sandbox Credentials Divider */}
-          <div className="relative my-8">
-            <div className="absolute inset-y-1/2 left-0 right-0 h-[1px] bg-white/[0.06]"></div>
-            <span className="relative z-10 block w-max mx-auto px-4 bg-[#0F0F11] text-[9px] uppercase font-black tracking-[0.25em] text-[#FFC700]/70">
-              Direct Access Keys
-            </span>
-          </div>
+          {enableDemoAccess && (
+            <>
+              <div className="relative my-8">
+                <div className="absolute inset-y-1/2 left-0 right-0 h-[1px] bg-white/[0.06]"></div>
+                <span className="relative z-10 block w-max mx-auto px-4 bg-[#0F0F11] text-[9px] uppercase font-black tracking-[0.25em] text-[#FFC700]/70">
+                  Demo Access
+                </span>
+              </div>
 
-          {/* Sandbox Quick Access Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => handleQuickLogin('ADMIN')}
-              disabled={loading}
-              className="bg-white/[0.02] hover:bg-[#FFC700]/10 border border-white/[0.04] hover:border-[#FFC700]/30 text-gray-300 hover:text-white rounded-xl py-2.5 px-3 text-[10px] font-black uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow-[0_0_15px_rgba(255,199,0,0.05)]"
-            >
-              <div className="w-1.5 h-1.5 bg-[#FFC700] rounded-full animate-pulse"></div>
-              Admin Key
-            </button>
-            <button
-              onClick={() => handleQuickLogin('CUSTOMER')}
-              disabled={loading}
-              className="bg-white/[0.02] hover:bg-[#FFC700]/10 border border-white/[0.04] hover:border-[#FFC700]/30 text-gray-300 hover:text-white rounded-xl py-2.5 px-3 text-[10px] font-black uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow-[0_0_15px_rgba(255,199,0,0.05)]"
-            >
-              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></div>
-              Client Key
-            </button>
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleQuickLogin('ADMIN')}
+                  disabled={loading}
+                  className="bg-white/[0.02] hover:bg-[#FFC700]/10 border border-white/[0.04] hover:border-[#FFC700]/30 text-gray-300 hover:text-white rounded-xl py-2.5 px-3 text-[10px] font-black uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow-[0_0_15px_rgba(255,199,0,0.05)]"
+                >
+                  <div className="w-1.5 h-1.5 bg-[#FFC700] rounded-full animate-pulse"></div>
+                  Admin Demo
+                </button>
+                <button
+                  onClick={() => handleQuickLogin('CUSTOMER')}
+                  disabled={loading}
+                  className="bg-white/[0.02] hover:bg-[#FFC700]/10 border border-white/[0.04] hover:border-[#FFC700]/30 text-gray-300 hover:text-white rounded-xl py-2.5 px-3 text-[10px] font-black uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow-[0_0_15px_rgba(255,199,0,0.05)]"
+                >
+                  <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></div>
+                  Client Demo
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Clean Luxury Footer */}
@@ -278,4 +287,3 @@ export default function LoginView() {
     </div>
   );
 }
-

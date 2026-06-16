@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 type TabType = 'profile' | 'whatsapp' | 'notifications' | 'roles' | 'system';
 
@@ -248,9 +249,9 @@ export default function Settings() {
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Company Branding Logo</label>
                     <div className="flex flex-col sm:flex-row items-center gap-4 p-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
                       <div className="w-28 h-28 bg-[#1A1A1A] rounded-xl flex items-center justify-center p-2 border border-gray-100 shadow-inner">
-                        <img src="/bmg-logo-original.png" alt="BMG Logo" className="max-w-full max-h-full object-contain" onError={(e) => {
+                        <Image src="/bmg-logo-original.png" alt="BMG Logo" width={104} height={104} className="max-w-full max-h-full object-contain" onError={(e) => {
                           // Fallback to stylized yellow monogram inside charcoal
-                          (e.target as HTMLElement).style.display = 'none';
+                          (e.currentTarget as HTMLElement).style.display = 'none';
                         }} />
                         <span className="text-amber-400 font-extrabold text-sm tracking-tighter">BMG</span>
                       </div>
@@ -534,6 +535,31 @@ export default function Settings() {
                       >
                         <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${
                           notifyDailyEod ? 'translate-x-4' : 'translate-x-0'
+                        }`}></span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 hover:bg-gray-50/40 transition-colors">
+                      <div className="flex gap-3.5 items-start">
+                        <div className="w-8 h-8 rounded-xl bg-green-50 text-green-600 border border-green-100 flex items-center justify-center shrink-0">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-18 8h18a2 2 0 002-2V8a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-gray-800 block">Email Digest Delivery</span>
+                          <span className="text-[10px] text-gray-400 font-medium block mt-1 leading-normal">Send consolidated CRM activity summaries to configured admin inboxes.</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEmailDigest(!emailDigest)}
+                        className={`w-9 h-5 rounded-full transition-colors relative shadow-inner cursor-pointer shrink-0 ${
+                          emailDigest ? 'bg-[#FFC700]' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${
+                          emailDigest ? 'translate-x-4' : 'translate-x-0'
                         }`}></span>
                       </button>
                     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 const initialProjects = [
   { id: 1, name: 'Skyline Apartments', loc: 'Mumbai', progress: '75%', status: 'In Progress' },
@@ -38,8 +39,8 @@ export default function RecentProjects() {
         {projects.map((proj) => (
           <div key={proj.id} className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-gray-200">
-                <img src={`https://picsum.photos/seed/${proj.id}/80/80`} alt={proj.name} className="w-full h-full object-cover" />
+              <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-gray-200">
+                <Image src={`https://picsum.photos/seed/${proj.id}/80/80`} alt={proj.name} fill sizes="40px" className="object-cover" />
               </div>
               <div className="overflow-hidden">
                 <h4 className="text-sm font-bold text-gray-800 truncate">{proj.name}</h4>

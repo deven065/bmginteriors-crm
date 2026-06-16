@@ -1,37 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BMG Interiors CRM
 
-## Getting Started
+Production-oriented CRM for BMG Interiors, built with a Next.js App Router frontend and Supabase authentication, authorization, and database storage.
 
-First, run the development server:
+## Local Development
+
+Install frontend dependencies:
+
+```bash
+npm install
+```
+
+Start the frontend:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Frontend Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create `.env.local` in the project root:
 
-## Learn More
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-or-anon-key
+NEXT_PUBLIC_AUTH_EMAIL_DOMAIN=bmginteriors.com
+NEXT_PUBLIC_ENABLE_DEMO_ACCESS=false
+```
 
-To learn more about Next.js, take a look at the following resources:
+Set `NEXT_PUBLIC_ENABLE_DEMO_ACCESS=true` only for local demo environments where seeded credentials should appear on the login screen.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Supabase Setup
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Create a Supabase project, then run the schema in `supabase/migrations/0001_crm_schema.sql` using the Supabase SQL editor or CLI. The migration creates CRM tables, profile creation triggers, and row-level security policies.
 
-## Deploy on Vercel
+Authentication uses Supabase email/password. Users can sign in with a full email address, or with a username that maps to `username@NEXT_PUBLIC_AUTH_EMAIL_DOMAIN`. Create an admin user such as `admin@bmginteriors.com` and set its app metadata role to `ADMIN`; customer users should use role `CUSTOMER`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Authorization is enforced by Supabase RLS. Admins can manage CRM records, while customers can read projects, tasks, documents, and attendance associated with their profile.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# bmginteriors-crm
+## Legacy Backend Environment
+
+The Spring Boot backend is still available for deployments that need it, but the frontend CRM now reads and writes through Supabase.
+
+The backend reads deploy-time settings from environment variables:
+
+```bash
+DATABASE_URL=jdbc:postgresql://localhost:5432/crm
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=postgres
+JPA_DDL_AUTO=update
+JPA_SHOW_SQL=false
+PORT=8080
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+JWT_SECRET=replace-with-a-long-random-secret-at-least-32-characters
+JWT_EXPIRATION_MS=86400000
+SEED_DEMO_DATA=true
+```
+
+For production, use a managed PostgreSQL database, set `JPA_DDL_AUTO=validate` after migrations are established, set `SEED_DEMO_DATA=false`, and replace `JWT_SECRET` with a strong private value.
+
+## Verification
+
+```bash
+npm run lint
+npm run build
+```

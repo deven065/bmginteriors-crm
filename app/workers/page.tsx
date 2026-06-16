@@ -1,6 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
+import {
+  createWorker,
+  deleteWorker,
+  listWorkers,
+  updateWorker,
+  type CrmWorker,
+} from '../lib/crmData';
 
 const stats = [
   {
@@ -84,11 +92,103 @@ const workersData = [
 ];
 
 const tabs = ['All Workers', 'Active', 'Inactive', 'Supervisors', 'Skilled Workers', 'Helpers'];
+type WorkerView = (typeof workersData)[number];
+
+function toWorkerView(worker: CrmWorker): WorkerView {
+  return {
+    id: worker.id,
+    name: worker.name,
+    empId: worker.empId,
+    role: worker.role,
+    phone: worker.phone,
+    email: worker.email,
+    project: worker.project,
+    status: worker.status,
+    date: worker.date || '',
+    avatar: worker.avatar,
+  };
+}
 
 export default function Workers() {
   const [activeTab, setActiveTab] = useState('All Workers');
+  const [workers, setWorkers] = useState<WorkerView[]>(workersData);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredWorkers = workersData.filter((worker) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadWorkers = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await listWorkers();
+        if (!cancelled) setWorkers(data.map(toWorkerView));
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load Supabase workers.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void loadWorkers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleCreateWorker = async () => {
+    const name = prompt('Worker name:');
+    if (!name) return;
+
+    const role = prompt('Role:', 'Worker') || 'Worker';
+
+    try {
+      const created = await createWorker({
+        name,
+        role,
+        empId: prompt('Employee ID:', '') || '',
+        phone: prompt('Phone:', '') || '',
+        email: prompt('Email:', '') || '',
+        project: prompt('Project/Site:', '') || '',
+        status: 'Active',
+        date: new Date().toISOString().slice(0, 10),
+        avatar: name,
+      });
+      setWorkers((current) => [toWorkerView(created), ...current]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create worker.');
+    }
+  };
+
+  const handleEditWorker = async (worker: WorkerView) => {
+    const project = prompt('Edit project/site:', worker.project);
+    if (project === null) return;
+
+    const status = prompt('Edit status:', worker.status) || worker.status;
+
+    try {
+      await updateWorker(worker.id, { project, status });
+      setWorkers((current) => current.map((item) => (item.id === worker.id ? { ...item, project, status } : item)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update worker.');
+    }
+  };
+
+  const handleDeleteWorker = async (id: number) => {
+    if (!confirm('Delete this worker?')) return;
+
+    try {
+      await deleteWorker(id);
+      setWorkers((current) => current.filter((worker) => worker.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete worker.');
+    }
+  };
+
+  const filteredWorkers = workers.filter((worker) => {
     if (activeTab === 'All Workers') return true;
     if (activeTab === 'Active') return worker.status === 'Active';
     if (activeTab === 'Inactive') return worker.status === 'Inactive';
@@ -129,7 +229,7 @@ export default function Workers() {
 
         {/* Actions stacked on the far right */}
         <div className="lg:col-span-2 flex flex-row lg:flex-col justify-between gap-3 shrink-0">
-          <button className="flex-1 bg-[#FFC700] hover:bg-[#e6b400] text-black text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center transition-colors shadow-sm cursor-pointer">
+          <button onClick={handleCreateWorker} className="flex-1 bg-[#FFC700] hover:bg-[#e6b400] text-black text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center transition-colors shadow-sm cursor-pointer">
             <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -144,6 +244,12 @@ export default function Workers() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
+          {error}
+        </div>
+      )}
 
       {/* Tabs and Dropdown Filters Row */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center border-b border-gray-200 pb-3 gap-4">
@@ -213,7 +319,7 @@ export default function Workers() {
                 <tr key={worker.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="py-4">
                     <div className="flex items-center gap-3">
-                      <img src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
+                      <Image src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} width={32} height={32} className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
                       <span className="font-bold text-gray-800 text-sm">{worker.name}</span>
                     </div>
                   </td>
@@ -233,12 +339,12 @@ export default function Workers() {
                   <td className="py-4 text-gray-500 font-medium text-xs">{worker.date}</td>
                   <td className="py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
+                      <button onClick={() => handleEditWorker(worker)} className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                      <button onClick={() => handleDeleteWorker(worker.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -253,7 +359,7 @@ export default function Workers() {
         
         {/* Pagination */}
         <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col sm:flex-row gap-4 items-center justify-between text-xs text-gray-400 font-semibold">
-          <span>Showing 1 to {filteredWorkers.length} of 80 workers</span>
+          <span>{loading ? 'Loading Supabase workers...' : `Showing 1 to ${filteredWorkers.length} of ${workers.length} workers`}</span>
           <div className="flex items-center gap-1.5">
             <button className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-400 transition-colors cursor-pointer">&lt;</button>
             <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#FFC700] text-black font-bold shadow-sm transition-colors cursor-pointer">1</button>

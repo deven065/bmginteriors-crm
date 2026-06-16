@@ -1,42 +1,27 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-
-interface Project {
-  id?: number;
-  name: string;
-  type: string;
-  location: string;
-  status: string;
-  percentage: number;
-  date: string;
-  tasksCompleted: number;
-  totalTasks: number;
-  avatarSeed: string;
-  client: string;
-  startDate?: string;
-  deadline?: string;
-  budget?: number;
-  spent?: number;
-}
-
-interface Customer {
-  fullName: string;
-  username: string;
-}
+import {
+  deleteProject,
+  listCustomers,
+  listProjects,
+  saveProject,
+  type CrmCustomer,
+  type CrmProject,
+} from '../lib/crmData';
 
 export default function Projects() {
   const { user } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [projects, setProjects] = useState<CrmProject[]>([]);
+  const [customers, setCustomers] = useState<CrmCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('All Projects');
 
   // Modal forms states
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<CrmProject | null>(null);
 
   // Form inputs
   const [name, setName] = useState('');
@@ -47,83 +32,41 @@ export default function Projects() {
   const [startDate, setStartDate] = useState('');
   const [deadline, setDeadline] = useState('');
   const [client, setClient] = useState('');
+  const [clientUserId, setClientUserId] = useState<string | null>(null);
   const [budget, setBudget] = useState(100000);
   const [spent, setSpent] = useState(0);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (user?.token) {
-        headers['Authorization'] = `Bearer ${user.token}`;
-      }
-
-      const response = await fetch('http://localhost:8080/api/projects', {
-        headers,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(data);
-      } else {
-        throw new Error('Failed to load projects from server.');
-      }
+      setError(null);
+      const data = await listProjects();
+      setProjects(data);
     } catch (err) {
-      console.warn('Backend fetch failed. Using fallback seeded projects data:', err);
-      // Fallback local projects mock list mapping user roles
-      const localSeeded = [
-        { id: 1, name: 'Skyline Apartments', type: 'Residential', location: 'Mumbai', status: 'In Progress', percentage: 75, date: '10 Jun 2024 - 10 Oct 2024', tasksCompleted: 15, totalTasks: 20, avatarSeed: 'skyline', client: 'Rajesh Mehta', startDate: '2024-06-10', deadline: '2024-10-10', budget: 2500000, spent: 1800000 },
-        { id: 2, name: 'Orchid Commercial', type: 'Commercial', location: 'Delhi', status: 'In Progress', percentage: 40, date: '05 Feb 2024 - 20 Aug 2024', tasksCompleted: 6, totalTasks: 15, avatarSeed: 'orchid', client: 'Acme Corp', startDate: '2024-02-05', deadline: '2024-08-20', budget: 5000000, spent: 2200000 },
-        { id: 3, name: 'Green Valley Villa', type: 'Residential', location: 'Bangalore', status: 'Near Completion', percentage: 90, date: '15 Jun 2024 - 15 Jun 2024', tasksCompleted: 18, totalTasks: 20, avatarSeed: 'greenvalley', client: 'John Smith', startDate: '2024-06-15', deadline: '2024-06-15', budget: 7500000, spent: 6700000 },
-        { id: 4, name: 'Palm Resort', type: 'Hospitality', location: 'Goa', status: 'Planning', percentage: 20, date: '01 Jul 2024 - 30 Dec 2024', tasksCompleted: 2, totalTasks: 10, avatarSeed: 'palmresort', client: 'Goa Leisure Ltd', startDate: '2024-07-01', deadline: '2024-12-30', budget: 12000000, spent: 2400000 },
-        { id: 5, name: 'Lake View Homes', type: 'Residential', location: 'Pune', status: 'On Hold', percentage: 10, date: '20 Feb 2024 - 20 Nov 2024', tasksCompleted: 1, totalTasks: 10, avatarSeed: 'lakeview', client: 'Rajesh Mehta', startDate: '2024-02-20', deadline: '2024-11-20', budget: 3500000, spent: 350000 },
-      ];
-      
-      // If Customer, filter so they only see projects assigned to them
-      if (user?.role === 'CUSTOMER') {
-        const clientName = user.fullName;
-        setProjects(localSeeded.filter(p => p.client && p.client.toLowerCase() === clientName.toLowerCase()));
-      } else {
-        setProjects(localSeeded);
-      }
+      setProjects([]);
+      setError(err instanceof Error ? err.message : 'Failed to load projects from Supabase.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     if (user?.role !== 'ADMIN') return;
     try {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (user?.token) {
-        headers['Authorization'] = `Bearer ${user.token}`;
-      }
-
-      const response = await fetch('http://localhost:8080/api/auth/customers', {
-        headers,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCustomers(data);
-      }
+      const data = await listCustomers();
+      setCustomers(data);
     } catch (err) {
-      console.warn('Backend customers fetch failed. Using fallback customer list:', err);
-      setCustomers([
-        { fullName: 'Rajesh Mehta', username: 'customer' },
-        { fullName: 'Acme Corp', username: 'acme' },
-      ]);
+      setCustomers([]);
+      setError(err instanceof Error ? err.message : 'Failed to load customer accounts.');
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchProjects();
-    fetchCustomers();
-  }, [user]);
+    void Promise.resolve().then(() => {
+      void fetchProjects();
+      void fetchCustomers();
+    });
+  }, [fetchProjects, fetchCustomers]);
 
   const handleOpenNewModal = () => {
     setEditingProject(null);
@@ -134,13 +77,14 @@ export default function Projects() {
     setPercentage(0);
     setStartDate('');
     setDeadline('');
-    setClient(customers[0]?.fullName || 'Rajesh Mehta');
+    setClient(customers[0]?.fullName || '');
+    setClientUserId(customers[0]?.id || null);
     setBudget(500000);
     setSpent(0);
     setIsModalOpen(true);
   };
 
-  const handleOpenEditModal = (proj: Project) => {
+  const handleOpenEditModal = (proj: CrmProject) => {
     setEditingProject(proj);
     setName(proj.name);
     setType(proj.type);
@@ -150,6 +94,7 @@ export default function Projects() {
     setStartDate(proj.startDate || '');
     setDeadline(proj.deadline || '');
     setClient(proj.client || '');
+    setClientUserId(proj.clientUserId || customers.find((c) => c.fullName === proj.client)?.id || null);
     setBudget(proj.budget || 500000);
     setSpent(proj.spent || 0);
     setIsModalOpen(true);
@@ -160,7 +105,8 @@ export default function Projects() {
     if (!name.trim()) return;
 
     const formattedDate = `${startDate ? new Date(startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBD'} - ${deadline ? new Date(deadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBD'}`;
-    const projectPayload: Project = {
+    const projectPayload: CrmProject = {
+      id: editingProject?.id,
       name,
       type,
       location,
@@ -171,6 +117,7 @@ export default function Projects() {
       totalTasks: editingProject ? editingProject.totalTasks : 10,
       avatarSeed: name.toLowerCase().replace(/\s+/g, ''),
       client,
+      clientUserId,
       startDate,
       deadline,
       budget: Number(budget),
@@ -178,82 +125,21 @@ export default function Projects() {
     };
 
     try {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (user?.token) {
-        headers['Authorization'] = `Bearer ${user.token}`;
-      }
-
-      let response;
-      if (editingProject) {
-        // Edit mode
-        response = await fetch(`http://localhost:8080/api/projects/${editingProject.id}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(projectPayload),
-        });
-      } else {
-        // Create mode
-        response = await fetch('http://localhost:8080/api/projects', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(projectPayload),
-        });
-      }
-
-      if (response.ok) {
-        setIsModalOpen(false);
-        fetchProjects();
-      } else {
-        throw new Error('Save operation failed on server.');
-      }
-    } catch (err) {
-      console.warn('Backend save failed. Applying fallback client-side change:', err);
-      if (editingProject) {
-        // Fallback Edit
-        setProjects(prev =>
-          prev.map(p =>
-            p.id === editingProject.id
-              ? { ...p, ...projectPayload }
-              : p
-          )
-        );
-      } else {
-        // Fallback Create
-        const newProj = {
-          ...projectPayload,
-          id: projects.length ? Math.max(...projects.map(p => p.id || 0)) + 1 : 1,
-        };
-        setProjects(prev => [...prev, newProj]);
-      }
+      await saveProject(projectPayload);
       setIsModalOpen(false);
+      void fetchProjects();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Project save failed.');
     }
   };
 
   const handleDeleteProject = async (id: number) => {
     if (!confirm('Are you sure you want to delete this project?')) return;
     try {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (user?.token) {
-        headers['Authorization'] = `Bearer ${user.token}`;
-      }
-
-      const response = await fetch(`http://localhost:8080/api/projects/${id}`, {
-        method: 'DELETE',
-        headers,
-      });
-
-      if (response.ok) {
-        fetchProjects();
-      } else {
-        throw new Error('Delete operation failed on server.');
-      }
+      await deleteProject(id);
+      void fetchProjects();
     } catch (err) {
-      console.warn('Backend delete failed. Applying fallback client-side deletion:', err);
-      setProjects(prev => prev.filter(p => p.id !== id));
+      setError(err instanceof Error ? err.message : 'Project delete failed.');
     }
   };
 
@@ -376,6 +262,12 @@ export default function Projects() {
           </div>
         )}
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Loading state */}
       {loading ? (
@@ -536,21 +428,20 @@ export default function Projects() {
                     Assign to Client / Owner
                   </label>
                   <select
-                    value={client}
-                    onChange={(e) => setClient(e.target.value)}
+                    value={clientUserId || ''}
+                    onChange={(e) => {
+                      const selected = customers.find((c) => c.id === e.target.value);
+                      setClientUserId(selected?.id || null);
+                      setClient(selected?.fullName || '');
+                    }}
                     className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFC700] rounded-xl py-3 px-4 text-xs font-bold text-gray-800 outline-none transition-all cursor-pointer"
                   >
                     {customers.map((c) => (
-                      <option key={c.username} value={c.fullName}>
+                      <option key={c.id} value={c.id}>
                         {c.fullName} ({c.username})
                       </option>
                     ))}
-                    {customers.length === 0 && (
-                      <>
-                        <option value="Rajesh Mehta">Rajesh Mehta (customer)</option>
-                        <option value="Acme Corp">Acme Corp (acme)</option>
-                      </>
-                    )}
+                    {customers.length === 0 && <option value="">No customer accounts available</option>}
                   </select>
                 </div>
               </div>

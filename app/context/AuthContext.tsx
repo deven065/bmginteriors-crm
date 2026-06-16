@@ -1,12 +1,15 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { requireSupabaseBrowserClient, SupabaseConfigError } from '../lib/supabase';
+import type { AppRole } from '../lib/supabaseTypes';
 
 export interface User {
+  id: string;
   username: string;
+  email: string;
   fullName: string;
-  role: 'ADMIN' | 'CUSTOMER';
-  token?: string;
+  role: AppRole;
 }
 
 interface AuthContextType {
@@ -14,95 +17,167 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
+}
+
+interface ProfileRecord {
+  id: string;
+  username: string | null;
+  full_name: string;
+  role: AppRole;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function resolveLoginEmail(usernameOrEmail: string) {
+  const value = usernameOrEmail.trim();
+  if (value.includes('@')) return value;
+
+  const authDomain = process.env.NEXT_PUBLIC_AUTH_EMAIL_DOMAIN || 'bmginteriors.com';
+  return `${value}@${authDomain}`;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Check if user session is saved in localStorage
-    const savedUser = localStorage.getItem('bmg_crm_user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        localStorage.removeItem('bmg_crm_user');
-      }
+  const loadProfile = useCallback(async (userId: string, email: string | undefined): Promise<User> => {
+    const supabase = requireSupabaseBrowserClient();
+    const { data, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, role')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      throw profileError;
     }
-    setLoading(false);
+
+    const profile = data as ProfileRecord;
+
+    return {
+      id: profile.id,
+      username: profile.username || email?.split('@')[0] || 'user',
+      email: email || '',
+      fullName: profile.full_name,
+      role: profile.role,
+    };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const supabase = (() => {
+      try {
+        return requireSupabaseBrowserClient();
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Supabase is not configured.');
+          setUser(null);
+          setLoading(false);
+        }
+        return null;
+      }
+    })();
+
+    if (!supabase) return;
+
+    void supabase.auth.getSession().then(async ({ data, error: sessionError }) => {
+      if (cancelled) return;
+
+      if (sessionError) {
+        setError(sessionError.message);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      if (!data.session?.user) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setUser(await loadProfile(data.session.user.id, data.session.user.email));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to load your profile.');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      void Promise.resolve().then(async () => {
+        if (cancelled) return;
+
+        if (!session?.user) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          setUser(await loadProfile(session.user.id, session.user.email));
+          setError(null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Unable to load your profile.');
+          setUser(null);
+        } finally {
+          setLoading(false);
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
+  }, [loadProfile]);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     setError(null);
     try {
-      // Attempt to hit the Spring Boot Auth Controller
-      const response = await fetch('http://localhost:8080/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
+      const supabase = requireSupabaseBrowserClient();
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: resolveLoginEmail(username),
+        password,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const loggedInUser: User = {
-          username: data.username,
-          fullName: data.fullName,
-          role: data.role as 'ADMIN' | 'CUSTOMER',
-          token: data.token,
-        };
-        setUser(loggedInUser);
-        localStorage.setItem('bmg_crm_user', JSON.stringify(loggedInUser));
-        return true;
-      } else {
-        const errorText = await response.text();
-        let errMsg = 'Invalid username or password';
-        try {
-          const errObj = JSON.parse(errorText);
-          if (errObj.error) errMsg = errObj.error;
-        } catch (e) {}
-        setError(errMsg);
-        return false;
+      if (signInError) {
+        throw signInError;
       }
+
+      if (!data.user) {
+        throw new Error('Unable to start a Supabase session.');
+      }
+
+      const loggedInUser: User = {
+        ...(await loadProfile(data.user.id, data.user.email)),
+      };
+      setUser(loggedInUser);
+      return true;
     } catch (err) {
-      console.warn('Backend connection failed, falling back to local fallback authentication:', err);
-      // Resilient local fallback in case the local database / backend is not active
-      if (username === 'admin' && password === 'admin123') {
-        const fallbackUser: User = {
-          username: 'admin',
-          fullName: 'John Doe',
-          role: 'ADMIN',
-          token: 'fallback-jwt-admin-token-12345',
-        };
-        setUser(fallbackUser);
-        localStorage.setItem('bmg_crm_user', JSON.stringify(fallbackUser));
-        return true;
-      } else if (username === 'customer' && password === 'customer123') {
-        const fallbackUser: User = {
-          username: 'customer',
-          fullName: 'Rajesh Mehta',
-          role: 'CUSTOMER',
-          token: 'fallback-jwt-customer-token-12345',
-        };
-        setUser(fallbackUser);
-        localStorage.setItem('bmg_crm_user', JSON.stringify(fallbackUser));
-        return true;
-      } else {
-        setError('Invalid username or password (Fallback Mode)');
-        return false;
-      }
+      setError(
+        err instanceof SupabaseConfigError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Unable to sign in with Supabase.'
+      );
+      return false;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('bmg_crm_user');
+  const logout = async () => {
+    try {
+      const supabase = requireSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } finally {
+      setUser(null);
+    }
   };
 
   return (

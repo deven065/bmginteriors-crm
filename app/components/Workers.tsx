@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 const initialWorkers = [
   { id: 1, name: 'Ravi Kumar', role: 'Electrician', phone: '+91 98765 43210', status: 'Present', projects: 3 },
@@ -52,7 +53,7 @@ export default function Workers() {
               <tr key={worker.id} className="hover:bg-gray-50 transition-colors">
                 <td className="py-3">
                   <div className="flex items-center gap-3">
-                    <img src={`https://i.pravatar.cc/150?u=${worker.id}`} alt={worker.name} className="w-8 h-8 rounded-full" />
+                    <Image src={`https://i.pravatar.cc/150?u=${worker.id}`} alt={worker.name} width={32} height={32} className="w-8 h-8 rounded-full" />
                     <span className="font-bold text-gray-800">{worker.name}</span>
                   </div>
                 </td>

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,9 +36,11 @@ export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
   return (
     <div className="w-64 bg-[#1A1A1A] text-white flex flex-col h-full shrink-0 relative">
       <div className="p-6 flex flex-col items-center border-b border-white/10 select-none">
-        <img 
+        <Image
           src="/bmg-logo-original.png" 
           alt="BMG Interiors" 
+          width={120}
+          height={64}
           className="h-16 w-auto object-contain hover:brightness-110 transition-all duration-300"
         />
       </div>
@@ -69,9 +72,11 @@ export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
 
       <div className="p-4 border-t border-white/10">
         <div className="flex items-center p-3 rounded-xl hover:bg-white/5 transition-colors border border-white/10">
-          <img
+          <Image
             src={avatarUrl}
             alt={user?.fullName || 'User'}
+            width={40}
+            height={40}
             className="w-10 h-10 rounded-full border border-white/20 shrink-0"
           />
           <div className="ml-3 flex-1 min-w-0">
@@ -79,7 +84,9 @@ export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
             <p className="text-xs text-gray-400 capitalize">{user?.role?.toLowerCase() || 'Role'}</p>
           </div>
           <button
-            onClick={logout}
+            onClick={() => {
+              void logout();
+            }}
             className="ml-2 p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-red-500 transition-colors cursor-pointer shrink-0"
             title="Log Out"
           >

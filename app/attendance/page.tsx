@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
+import {
+  deleteAttendance,
+  listAttendance,
+  updateAttendance,
+  type CrmAttendance,
+} from '../lib/crmData';
 
 const stats = [
   {
@@ -95,25 +102,78 @@ const holidays = [
 ];
 
 const tabs = ['Daily Attendance', 'Attendance Calendar', 'Leave Requests', 'Holidays'];
+type AttendanceView = (typeof attendanceData)[number];
+
+function toAttendanceView(attendance: CrmAttendance): AttendanceView {
+  return {
+    id: attendance.id,
+    name: attendance.name,
+    empId: attendance.empId || `ATT${String(attendance.id).padStart(3, '0')}`,
+    role: attendance.role,
+    project: attendance.project,
+    checkIn: attendance.checkIn,
+    checkInStatus: attendance.checkInStatus,
+    checkOut: attendance.checkOut,
+    hours: attendance.hours,
+    status: attendance.status,
+    avatar: attendance.avatar,
+  };
+}
 
 export default function Attendance() {
   const [activeTab, setActiveTab] = useState('Daily Attendance');
-  const [attendanceList, setAttendanceList] = useState(attendanceData);
+  const [attendanceList, setAttendanceList] = useState<AttendanceView[]>(attendanceData);
   const [absentsList, setAbsentsList] = useState(absentWorkers);
   const [holidaysList, setHolidaysList] = useState(holidays);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleEditAttendance = (id: number) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAttendance = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await listAttendance();
+        if (!cancelled) setAttendanceList(data.map(toAttendanceView));
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load Supabase attendance.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void loadAttendance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleEditAttendance = async (id: number) => {
     const item = attendanceList.find(w => w.id === id);
     if (!item) return;
     const newProject = prompt('Edit Project/Site:', item.project);
     if (newProject) {
-      setAttendanceList(attendanceList.map(w => w.id === id ? { ...w, project: newProject } : w));
+      try {
+        await updateAttendance(id, { project: newProject });
+        setAttendanceList(attendanceList.map(w => w.id === id ? { ...w, project: newProject } : w));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to update attendance.');
+      }
     }
   };
 
-  const handleDeleteAttendance = (id: number) => {
+  const handleDeleteAttendance = async (id: number) => {
     if (confirm('Delete this attendance record?')) {
-      setAttendanceList(attendanceList.filter(w => w.id !== id));
+      try {
+        await deleteAttendance(id);
+        setAttendanceList(attendanceList.filter(w => w.id !== id));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to delete attendance.');
+      }
     }
   };
 
@@ -245,6 +305,12 @@ export default function Attendance() {
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
+          {error}
+        </div>
+      )}
+
       {/* Main Grid: Left Table & Right Side widgets */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left Side: Dynamic Tab Renders */}
@@ -328,7 +394,7 @@ export default function Attendance() {
                         <tr key={worker.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="py-4">
                             <div className="flex items-center gap-3">
-                              <img src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
+                              <Image src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} width={32} height={32} className="w-8 h-8 rounded-full border border-gray-100 shrink-0" />
                               <span className="font-bold text-gray-800 text-sm">{worker.name}</span>
                             </div>
                           </td>
@@ -380,7 +446,7 @@ export default function Attendance() {
 
                 {/* Pagination */}
                 <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col sm:flex-row gap-4 items-center justify-between text-xs text-gray-400 font-semibold">
-                  <span>Showing 1 to {filteredAttendance.length} of 80 workers</span>
+                  <span>{loading ? 'Loading Supabase attendance...' : `Showing 1 to ${filteredAttendance.length} of ${attendanceList.length} workers`}</span>
                   <div className="flex items-center gap-1.5">
                     <button className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-400 transition-colors cursor-pointer">&lt;</button>
                     <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#FFC700] text-black font-bold shadow-sm transition-colors cursor-pointer">1</button>
@@ -678,7 +744,7 @@ export default function Attendance() {
               {absentsList.map((worker) => (
                 <div key={worker.id} className="py-3.5 flex items-center justify-between first:pt-0 last:pb-0 gap-3 group relative">
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <img src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} className="w-7.5 h-7.5 rounded-full border border-gray-100 shrink-0" />
+                    <Image src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} width={30} height={30} className="w-7.5 h-7.5 rounded-full border border-gray-100 shrink-0" />
                     <div className="min-w-0">
                       <span className="text-xs font-bold text-gray-800 block truncate">{worker.name}</span>
                       <span className="text-[10px] text-gray-400 block mt-0.5">{worker.role}</span>
@@ -756,7 +822,7 @@ export default function Attendance() {
                         <tr key={worker.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="py-3">
                             <div className="flex items-center gap-3">
-                              <img src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} className="w-8 h-8 rounded-full border border-gray-100" />
+                              <Image src={`https://i.pravatar.cc/80?u=${worker.avatar}`} alt={worker.name} width={32} height={32} className="w-8 h-8 rounded-full border border-gray-100" />
                               <span className="font-bold text-gray-800 text-sm">{worker.name}</span>
                             </div>
                           </td>
@@ -873,4 +939,3 @@ export default function Attendance() {
     </div>
   );
 }
-

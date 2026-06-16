@@ -1,6 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
+import {
+  createDocument,
+  deleteDocument,
+  listDocuments,
+  updateDocument,
+  type CrmDocument,
+} from '../lib/crmData';
 
 const stats = [
   {
@@ -213,12 +221,80 @@ const documentsData = [
   },
 ];
 
+type DocumentView = (typeof documentsData)[number];
+
+function splitUploadedOn(uploadedOn: string) {
+  const date = new Date(uploadedOn);
+  if (Number.isNaN(date.getTime())) {
+    return { date: uploadedOn || 'TBD', time: '' };
+  }
+
+  return {
+    date: new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(date),
+    time: new Intl.DateTimeFormat('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date),
+  };
+}
+
+function toDocumentView(document: CrmDocument): DocumentView {
+  const uploaded = splitUploadedOn(document.uploadedOn);
+  const fileType = document.fileType || document.type.toLowerCase() || 'file';
+
+  return {
+    id: document.id,
+    name: document.name,
+    project: document.project,
+    category: document.category,
+    type: document.type || fileType.toUpperCase(),
+    size: document.size,
+    uploadedBy: document.uploadedBy || 'BMG Team',
+    role: document.role || 'Admin',
+    avatar: document.avatar,
+    date: uploaded.date,
+    time: uploaded.time,
+    fileType,
+  };
+}
+
 export default function Documents() {
+  const [documents, setDocuments] = useState<DocumentView[]>(documentsData);
   const [selectedDocs, setSelectedDocs] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDocuments = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await listDocuments();
+        if (!cancelled) setDocuments(data.map(toDocumentView));
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load Supabase documents.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void loadDocuments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedDocs(documentsData.map((doc) => doc.id));
+      setSelectedDocs(documents.map((doc) => doc.id));
     } else {
       setSelectedDocs([]);
     }
@@ -232,12 +308,61 @@ export default function Documents() {
     }
   };
 
+  const handleCreateDocument = async (fileType = 'pdf') => {
+    const name = prompt(fileType === 'folder' ? 'Folder name:' : 'Document name:');
+    if (!name) return;
+
+    try {
+      const created = await createDocument({
+        name,
+        project: prompt('Project:', '') || '',
+        category: fileType === 'folder' ? 'Folder' : prompt('Category:', 'Reports') || 'Reports',
+        type: fileType === 'folder' ? '-' : fileType.toUpperCase(),
+        fileType,
+        size: fileType === 'folder' ? '-' : prompt('File size:', '') || '-',
+        uploadedBy: 'BMG Team',
+        role: 'Admin',
+        uploadedOn: new Date().toISOString(),
+        avatar: 'admin',
+      });
+      setDocuments((current) => [toDocumentView(created), ...current]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create document.');
+    }
+  };
+
+  const handleEditDocument = async (doc: DocumentView) => {
+    const name = prompt('Edit document name:', doc.name);
+    if (!name) return;
+
+    const category = prompt('Edit category:', doc.category) || doc.category;
+
+    try {
+      await updateDocument(doc.id, { name, category });
+      setDocuments((current) => current.map((item) => (item.id === doc.id ? { ...item, name, category } : item)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update document.');
+    }
+  };
+
+  const handleDeleteDocument = async (id: number) => {
+    if (!confirm('Delete this document record?')) return;
+
+    try {
+      await deleteDocument(id);
+      setDocuments((current) => current.filter((doc) => doc.id !== id));
+      setSelectedDocs((current) => current.filter((docId) => docId !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete document.');
+    }
+  };
+
   const getFileIcon = (fileType: string) => {
     switch (fileType) {
       case 'dwg':
         return (
-          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-gray-100">
-            <img src="https://picsum.photos/seed/elevation/100/100" alt="CAD" className="w-full h-full object-cover" />
+          <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-gray-100">
+            <Image src="https://picsum.photos/seed/elevation/100/100" alt="CAD" fill sizes="40px" className="object-cover" />
           </div>
         );
       case 'pdf':
@@ -330,14 +455,14 @@ export default function Documents() {
 
         {/* Actions stacked on the far right */}
         <div className="lg:col-span-2 flex flex-row lg:flex-col justify-between gap-3 shrink-0">
-          <button className="flex-1 bg-[#FFC700] hover:bg-[#e6b400] text-black text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center transition-colors shadow-sm cursor-pointer">
+          <button onClick={() => handleCreateDocument('pdf')} className="flex-1 bg-[#FFC700] hover:bg-[#e6b400] text-black text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center transition-colors shadow-sm cursor-pointer">
             <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             Upload Document
           </button>
           
-          <button className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center transition-colors shadow-sm cursor-pointer">
+          <button onClick={() => handleCreateDocument('folder')} className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center transition-colors shadow-sm cursor-pointer">
             <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -345,6 +470,12 @@ export default function Documents() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
+          {error}
+        </div>
+      )}
 
       {/* Tabs and Dropdown Filters Row */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center border-b border-gray-200 pb-3 gap-4">
@@ -393,7 +524,7 @@ export default function Documents() {
                   <input 
                     type="checkbox" 
                     onChange={handleSelectAll}
-                    checked={selectedDocs.length === documentsData.length}
+                    checked={documents.length > 0 && selectedDocs.length === documents.length}
                     className="w-4 h-4 rounded text-[#FFC700] border-gray-300 focus:ring-[#FFC700] cursor-pointer" 
                   />
                 </th>
@@ -408,7 +539,7 @@ export default function Documents() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {documentsData.map((doc) => (
+              {documents.map((doc) => (
                 <tr key={doc.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="py-4 text-center">
                     <input 
@@ -446,7 +577,7 @@ export default function Documents() {
                   </td>
                   <td className="py-4">
                     <div className="flex items-center gap-2.5">
-                      <img src={`https://i.pravatar.cc/80?u=${doc.avatar}`} alt={doc.uploadedBy} className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
+                      <Image src={`https://i.pravatar.cc/80?u=${doc.avatar}`} alt={doc.uploadedBy} width={28} height={28} className="w-7 h-7 rounded-full border border-gray-100 shrink-0" />
                       <div>
                         <span className="text-gray-700 font-bold text-xs block leading-tight">{doc.uploadedBy}</span>
                         <span className="text-[9px] text-gray-400 font-medium block mt-0.5">{doc.role}</span>
@@ -461,12 +592,12 @@ export default function Documents() {
                   </td>
                   <td className="py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
+                      <button onClick={() => handleEditDocument(doc)} className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                      <button onClick={() => handleDeleteDocument(doc.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -481,7 +612,7 @@ export default function Documents() {
         
         {/* Pagination */}
         <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col sm:flex-row gap-4 items-center justify-between text-xs text-gray-400 font-semibold">
-          <span>Showing 1 to {documentsData.length} of 256 documents</span>
+          <span>{loading ? 'Loading Supabase documents...' : `Showing 1 to ${documents.length} of ${documents.length} documents`}</span>
           <div className="flex items-center gap-1.5">
             <button className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-400 transition-colors cursor-pointer">&lt;</button>
             <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#FFC700] text-black font-bold shadow-sm transition-colors cursor-pointer">1</button>

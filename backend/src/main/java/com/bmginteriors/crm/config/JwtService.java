@@ -4,6 +4,7 @@ import com.bmginteriors.crm.model.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -15,12 +16,14 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
-    // 256-bit key for HMAC-SHA
-    private static final String SECRET_KEY_STRING = "BMG_INTERIORS_CRM_SECURE_JWT_SECRET_KEY_2026_05_19_VERY_SECURE";
-    private static final long EXPIRATION_MS = 86400000; // 24 hours
+    @Value("${app.jwt.secret}")
+    private String secretKey;
+
+    @Value("${app.jwt.expiration-ms}")
+    private long expirationMs;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY_STRING.getBytes(StandardCharsets.UTF_8));
+        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(String username, UserRole role) {
@@ -31,7 +34,7 @@ public class JwtService {
                 .claims(claims)
                 .subject(username)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
+                .expiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(getSigningKey())
                 .compact();
     }

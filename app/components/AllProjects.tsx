@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 const initialProjects = [
   { id: 1, name: 'Skyline Apartments', type: 'Residential', loc: 'Mumbai', status: 'In Progress', progress: '75%', end: '10 Jun 2024' },
@@ -78,8 +79,8 @@ export default function AllProjects() {
               <tr key={proj.id} className="hover:bg-gray-50 transition-colors">
                 <td className="py-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded shrink-0 overflow-hidden">
-                      <img src={`https://picsum.photos/seed/${proj.id+10}/80/80`} alt={proj.name} className="w-full h-full object-cover" />
+                    <div className="relative w-8 h-8 rounded shrink-0 overflow-hidden">
+                      <Image src={`https://picsum.photos/seed/${proj.id+10}/80/80`} alt={proj.name} fill sizes="32px" className="object-cover" />
                     </div>
                     <span className="font-bold text-gray-800">{proj.name}</span>
                   </div>
