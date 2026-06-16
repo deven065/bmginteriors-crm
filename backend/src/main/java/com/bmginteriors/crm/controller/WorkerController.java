@@ -21,6 +21,7 @@ public class WorkerController {
     }
 
     @GetMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Worker> getWorkerById(@PathVariable Long id) {
         return workerRepository.findById(id)
                 .map(ResponseEntity::ok)
@@ -28,11 +29,13 @@ public class WorkerController {
     }
 
     @PostMapping
+    @SuppressWarnings("null")
     public Worker createWorker(@RequestBody Worker worker) {
         return workerRepository.save(worker);
     }
 
     @PutMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Worker> updateWorker(@PathVariable Long id, @RequestBody Worker workerDetails) {
         return workerRepository.findById(id).map(worker -> {
             worker.setName(workerDetails.getName());
@@ -49,6 +52,7 @@ public class WorkerController {
     }
 
     @DeleteMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Void> deleteWorker(@PathVariable Long id) {
         if (workerRepository.existsById(id)) {
             workerRepository.deleteById(id);

@@ -21,6 +21,7 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Document> getDocumentById(@PathVariable Long id) {
         return documentRepository.findById(id)
                 .map(ResponseEntity::ok)
@@ -28,11 +29,13 @@ public class DocumentController {
     }
 
     @PostMapping
+    @SuppressWarnings("null")
     public Document createDocument(@RequestBody Document document) {
         return documentRepository.save(document);
     }
 
     @PutMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Document> updateDocument(@PathVariable Long id, @RequestBody Document details) {
         return documentRepository.findById(id).map(document -> {
             document.setName(details.getName());
@@ -46,6 +49,7 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Void> deleteDocument(@PathVariable Long id) {
         if (documentRepository.existsById(id)) {
             documentRepository.deleteById(id);

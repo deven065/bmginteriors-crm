@@ -249,7 +249,7 @@ export default function Settings() {
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Company Branding Logo</label>
                     <div className="flex flex-col sm:flex-row items-center gap-4 p-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
                       <div className="w-28 h-28 bg-[#1A1A1A] rounded-xl flex items-center justify-center p-2 border border-gray-100 shadow-inner">
-                        <Image src="/bmg-logo-original.png" alt="BMG Logo" width={104} height={104} className="max-w-full max-h-full object-contain" onError={(e) => {
+                        <Image src="/bmg-logo-original.png" alt="BMG Logo" width={104} height={104} className="h-[104px] w-[104px] object-contain" onError={(e) => {
                           // Fallback to stylized yellow monogram inside charcoal
                           (e.currentTarget as HTMLElement).style.display = 'none';
                         }} />

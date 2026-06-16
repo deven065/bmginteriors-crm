@@ -53,6 +53,7 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<?> getTaskById(@PathVariable Long id) {
         User user = getAuthenticatedUser();
         return taskRepository.findById(id).map(task -> {
@@ -71,11 +72,13 @@ public class TaskController {
     }
 
     @PostMapping
+    @SuppressWarnings("null")
     public Task createTask(@RequestBody Task task) {
         return taskRepository.save(task);
     }
 
     @PutMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Task> updateTask(@PathVariable Long id, @RequestBody Task taskDetails) {
         return taskRepository.findById(id).map(task -> {
             task.setTitle(taskDetails.getTitle());
@@ -92,6 +95,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         if (taskRepository.existsById(id)) {
             taskRepository.deleteById(id);

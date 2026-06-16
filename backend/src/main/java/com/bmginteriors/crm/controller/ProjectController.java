@@ -40,6 +40,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<?> getProjectById(@PathVariable Long id) {
         User user = getAuthenticatedUser();
         return projectRepository.findById(id).map(project -> {
@@ -53,11 +54,13 @@ public class ProjectController {
     }
 
     @PostMapping
+    @SuppressWarnings("null")
     public Project createProject(@RequestBody Project project) {
         return projectRepository.save(project);
     }
 
     @PutMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Project> updateProject(@PathVariable Long id, @RequestBody Project projectDetails) {
         return projectRepository.findById(id).map(project -> {
             project.setName(projectDetails.getName());
@@ -78,6 +81,7 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         if (projectRepository.existsById(id)) {
             projectRepository.deleteById(id);

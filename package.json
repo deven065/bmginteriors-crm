@@ -19,7 +19,12 @@
     "postcss": "^8.5.10"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.11.1",
+    "@emnapi/runtime": "^1.11.1",
+    "@emnapi/wasi-threads": "^1.2.2",
+    "@napi-rs/wasm-runtime": "^1.1.5",
     "@tailwindcss/postcss": "^4",
+    "@tybys/wasm-util": "^0.10.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

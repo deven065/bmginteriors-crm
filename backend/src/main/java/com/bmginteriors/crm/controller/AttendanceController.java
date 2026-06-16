@@ -21,6 +21,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Attendance> getAttendanceById(@PathVariable Long id) {
         return attendanceRepository.findById(id)
                 .map(ResponseEntity::ok)
@@ -28,11 +29,13 @@ public class AttendanceController {
     }
 
     @PostMapping
+    @SuppressWarnings("null")
     public Attendance createAttendance(@RequestBody Attendance attendance) {
         return attendanceRepository.save(attendance);
     }
 
     @PutMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Attendance> updateAttendance(@PathVariable Long id, @RequestBody Attendance details) {
         return attendanceRepository.findById(id).map(attendance -> {
             attendance.setWorkerName(details.getWorkerName());
@@ -47,6 +50,7 @@ public class AttendanceController {
     }
 
     @DeleteMapping("/{id}")
+    @SuppressWarnings("null")
     public ResponseEntity<Void> deleteAttendance(@PathVariable Long id) {
         if (attendanceRepository.existsById(id)) {
             attendanceRepository.deleteById(id);

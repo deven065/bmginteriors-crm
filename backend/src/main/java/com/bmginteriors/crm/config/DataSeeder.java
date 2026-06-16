@@ -65,6 +65,7 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    @SuppressWarnings("null")
     private void seedProjects() {
         if (projectRepository.count() == 0) {
             Project p1 = new Project();
@@ -146,6 +147,7 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    @SuppressWarnings("null")
     private void seedTasks() {
         if (taskRepository.count() == 0) {
             Task t1 = new Task();
@@ -207,6 +209,7 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    @SuppressWarnings("null")
     private void seedWorkers() {
         if (workerRepository.count() == 0) {
             Worker w1 = new Worker();
@@ -241,6 +244,7 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    @SuppressWarnings("null")
     private void seedDocuments() {
         if (documentRepository.count() == 0) {
             Document d1 = new Document();
@@ -271,6 +275,7 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    @SuppressWarnings("null")
     private void seedAttendance() {
         if (attendanceRepository.count() == 0) {
             List<Worker> workers = workerRepository.findAll();
