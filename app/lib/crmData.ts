@@ -321,14 +321,26 @@ export async function saveProject(project: CrmProject) {
   const supabase = requireSupabaseBrowserClient();
   const payload = toProjectPayload(project);
 
-  if (project.id) {
-    const { error } = await supabase.from('projects').update(payload).eq('id', project.id);
+  if (project.id && project.id > 0) {
+    const { data, error } = await supabase
+      .from('projects')
+      .update(payload)
+      .eq('id', project.id)
+      .select('*')
+      .single();
+
     raise(error);
-    return;
+    return toProject(data as ProjectRow);
   }
 
-  const { error } = await supabase.from('projects').insert(payload as ProjectInsert);
+  const { data, error } = await supabase
+    .from('projects')
+    .insert(payload as ProjectInsert)
+    .select('*')
+    .single();
+
   raise(error);
+  return toProject(data as ProjectRow);
 }
 
 export async function deleteProject(id: number) {

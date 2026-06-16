@@ -1,38 +1,54 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-
-const initialProjects = [
-  { id: 1, name: 'Skyline Apartments', loc: 'Mumbai', progress: '75%', status: 'In Progress' },
-  { id: 2, name: 'Orchid Commercial', loc: 'Delhi', progress: '40%', status: 'In Progress' },
-  { id: 3, name: 'Green Valley Villa', loc: 'Bangalore', progress: '90%', status: 'Near Completion' },
-  { id: 4, name: 'Palm Resort', loc: 'Goa', progress: '20%', status: 'Planning' },
-];
+import Link from 'next/link';
+import { listProjects, type CrmProject } from '../lib/crmData';
+import {
+  PROJECT_CATALOG_UPDATED_EVENT,
+  getProjectOverlay,
+  mergeProjectCatalog,
+} from '../lib/projectCatalog';
+import { projectSeedData } from '../lib/projectSeedData';
 
 export default function RecentProjects() {
-  const [projects, setProjects] = useState(initialProjects);
+  const [projects, setProjects] = useState<CrmProject[]>([]);
 
-  const handleEdit = (id: number) => {
-    const item = projects.find(p => p.id === id);
-    if (!item) return;
-    const newName = prompt('Edit Project Name:', item.name);
-    if (newName) {
-      setProjects(projects.map(p => p.id === id ? { ...p, name: newName } : p));
+  const refreshProjects = useCallback(async () => {
+    try {
+      const data = await listProjects();
+      setProjects(mergeProjectCatalog(getProjectOverlay(), data, projectSeedData).slice(0, 4));
+    } catch {
+      setProjects(mergeProjectCatalog(getProjectOverlay(), projectSeedData).slice(0, 4));
     }
-  };
+  }, []);
 
-  const handleDelete = (id: number) => {
-    if (confirm('Delete this project?')) {
-      setProjects(projects.filter(p => p.id !== id));
-    }
-  };
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      void refreshProjects();
+    });
+
+    const syncCachedProjects = () => {
+      setProjects(mergeProjectCatalog(getProjectOverlay(), projectSeedData).slice(0, 4));
+      void refreshProjects();
+    };
+
+    window.addEventListener('focus', syncCachedProjects);
+    window.addEventListener('pageshow', syncCachedProjects);
+    window.addEventListener(PROJECT_CATALOG_UPDATED_EVENT, syncCachedProjects);
+
+    return () => {
+      window.removeEventListener('focus', syncCachedProjects);
+      window.removeEventListener('pageshow', syncCachedProjects);
+      window.removeEventListener(PROJECT_CATALOG_UPDATED_EVENT, syncCachedProjects);
+    };
+  }, [refreshProjects]);
 
   return (
     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-lg font-bold text-gray-800">Recent Projects</h2>
-        <a href="#" className="text-[#FFC700] text-sm font-medium hover:underline">View all</a>
+        <Link href="/projects" className="text-[#FFC700] text-sm font-medium hover:underline">View all</Link>
       </div>
       
       <div className="flex-1 flex flex-col gap-5">
@@ -40,20 +56,20 @@ export default function RecentProjects() {
           <div key={proj.id} className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-gray-200">
-                <Image src={`https://picsum.photos/seed/${proj.id}/80/80`} alt={proj.name} fill sizes="40px" className="object-cover" />
+                <Image src={`https://picsum.photos/seed/${proj.avatarSeed || proj.id}/80/80`} alt={proj.name} fill sizes="40px" className="object-cover" />
               </div>
               <div className="overflow-hidden">
                 <h4 className="text-sm font-bold text-gray-800 truncate">{proj.name}</h4>
-                <p className="text-xs text-gray-500 truncate">{proj.loc}</p>
+                <p className="text-xs text-gray-500 truncate">{proj.location}</p>
               </div>
             </div>
             
             <div className="w-20 shrink-0">
-              <span className="text-sm font-bold text-gray-800">{proj.progress}</span>
+              <span className="text-sm font-bold text-gray-800">{proj.percentage}%</span>
               <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1">
                 <div 
                   className="h-full rounded-full bg-[#FFC700]" 
-                  style={{ width: proj.progress }}
+                  style={{ width: `${proj.percentage}%` }}
                 ></div>
               </div>
             </div>
@@ -66,15 +82,6 @@ export default function RecentProjects() {
               }`}>
                 {proj.status}
               </span>
-            </div>
-            
-            <div className="w-16 shrink-0 text-right flex items-center justify-end gap-1.5">
-              <button onClick={() => handleEdit(proj.id)} className="text-gray-400 hover:text-blue-600 p-1.5 rounded hover:bg-blue-50 transition-colors cursor-pointer" title="Edit">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              </button>
-              <button onClick={() => handleDelete(proj.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              </button>
             </div>
           </div>
         ))}

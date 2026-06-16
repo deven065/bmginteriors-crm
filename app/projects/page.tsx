@@ -10,14 +10,29 @@ import {
   type CrmCustomer,
   type CrmProject,
 } from '../lib/crmData';
+import {
+  PROJECT_CATALOG_UPDATED_EVENT,
+  getProjectOverlay,
+  mergeProjectCatalog,
+  projectKey,
+  removeProjectFromOverlay,
+  upsertProjectOverlay,
+} from '../lib/projectCatalog';
+import { projectSeedData } from '../lib/projectSeedData';
+
+const ALL_PROJECTS_TAB = 'All Projects';
+const PROJECT_STATUS_TABS = ['Planning', 'In Progress', 'Near Completion', 'On Hold', 'Completed'];
+const PROJECT_TABS = [ALL_PROJECTS_TAB, ...PROJECT_STATUS_TABS];
 
 export default function Projects() {
   const { user } = useAuth();
+  const userRole = user?.role;
   const [projects, setProjects] = useState<CrmProject[]>([]);
   const [customers, setCustomers] = useState<CrmCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('All Projects');
+  const [usingSeedProjects, setUsingSeedProjects] = useState(false);
+  const [activeTab, setActiveTab] = useState(ALL_PROJECTS_TAB);
 
   // Modal forms states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,17 +56,18 @@ export default function Projects() {
       setLoading(true);
       setError(null);
       const data = await listProjects();
-      setProjects(data);
-    } catch (err) {
-      setProjects([]);
-      setError(err instanceof Error ? err.message : 'Failed to load projects from Supabase.');
+      setProjects(mergeProjectCatalog(getProjectOverlay(), data, projectSeedData));
+      setUsingSeedProjects(data.length === 0);
+    } catch {
+      setProjects(mergeProjectCatalog(getProjectOverlay(), projectSeedData));
+      setUsingSeedProjects(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
   const fetchCustomers = useCallback(async () => {
-    if (user?.role !== 'ADMIN') return;
+    if (userRole !== 'ADMIN') return;
     try {
       const data = await listCustomers();
       setCustomers(data);
@@ -59,7 +75,7 @@ export default function Projects() {
       setCustomers([]);
       setError(err instanceof Error ? err.message : 'Failed to load customer accounts.');
     }
-  }, [user]);
+  }, [userRole]);
 
   useEffect(() => {
     void Promise.resolve().then(() => {
@@ -68,12 +84,35 @@ export default function Projects() {
     });
   }, [fetchProjects, fetchCustomers]);
 
+  useEffect(() => {
+    const syncCachedProjects = () => {
+      setProjects((current) => mergeProjectCatalog(getProjectOverlay(), current, projectSeedData));
+    };
+
+    window.addEventListener('focus', syncCachedProjects);
+    window.addEventListener('pageshow', syncCachedProjects);
+    window.addEventListener(PROJECT_CATALOG_UPDATED_EVENT, syncCachedProjects);
+
+    return () => {
+      window.removeEventListener('focus', syncCachedProjects);
+      window.removeEventListener('pageshow', syncCachedProjects);
+      window.removeEventListener(PROJECT_CATALOG_UPDATED_EVENT, syncCachedProjects);
+    };
+  }, []);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setProjects((current) => mergeProjectCatalog(getProjectOverlay(), current, projectSeedData));
+  };
+
   const handleOpenNewModal = () => {
+    const defaultStatus = PROJECT_STATUS_TABS.includes(activeTab) ? activeTab : 'Planning';
+
     setEditingProject(null);
     setName('');
     setType('Residential');
     setLocation('Mumbai');
-    setStatus('Planning');
+    setStatus(defaultStatus);
     setPercentage(0);
     setStartDate('');
     setDeadline('');
@@ -100,6 +139,22 @@ export default function Projects() {
     setIsModalOpen(true);
   };
 
+  const commitProjectToView = (project: CrmProject) => {
+    const editingKey = editingProject ? projectKey(editingProject) : '';
+    const savedKey = projectKey(project);
+    upsertProjectOverlay(project, editingProject);
+
+    setProjects((current) => {
+      const freshProjects = current.filter((item) => {
+        if (item.id === project.id || item.id === editingProject?.id) return false;
+        const itemKey = projectKey(item);
+        return itemKey !== savedKey && (!editingKey || itemKey !== editingKey);
+      });
+
+      return mergeProjectCatalog([project], freshProjects);
+    });
+  };
+
   const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -124,19 +179,40 @@ export default function Projects() {
       spent: Number(spent),
     };
 
+    const nextProject: CrmProject = {
+      ...projectPayload,
+      id: editingProject?.id || -Date.now(),
+    };
+
     try {
-      await saveProject(projectPayload);
+      commitProjectToView(nextProject);
+      setActiveTab(projectPayload.status);
       setIsModalOpen(false);
-      void fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Project save failed.');
+
+      try {
+        const savedProject = await saveProject(projectPayload);
+        commitProjectToView(savedProject);
+        void fetchProjects();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown Supabase error.';
+        setError(`Project is visible in the CRM, but Supabase did not save it: ${message}`);
+      }
+    } catch {
+      setError('Project save failed.');
     }
   };
 
   const handleDeleteProject = async (id: number) => {
     if (!confirm('Are you sure you want to delete this project?')) return;
     try {
+      if (usingSeedProjects || id < 0) {
+        setProjects((current) => current.filter((project) => project.id !== id));
+        removeProjectFromOverlay(id);
+        return;
+      }
+
       await deleteProject(id);
+      removeProjectFromOverlay(id);
       void fetchProjects();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Project delete failed.');
@@ -145,7 +221,7 @@ export default function Projects() {
 
   // Tab Filtering
   const filteredProjects = projects.filter((proj) => {
-    if (activeTab === 'All Projects') return true;
+    if (activeTab === ALL_PROJECTS_TAB) return true;
     return proj.status.toLowerCase() === activeTab.toLowerCase();
   });
 
@@ -229,12 +305,12 @@ export default function Projects() {
       {/* Tabs and Actions Row */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 pb-3 gap-4">
         <div className="flex flex-wrap gap-6 text-sm font-medium">
-          {['All Projects', 'Planning', 'In Progress', 'Near Completion', 'On Hold', 'Completed'].map((tab) => {
+          {PROJECT_TABS.map((tab) => {
             const isActive = activeTab === tab;
             return (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => handleTabChange(tab)}
                 className={`pb-3 relative transition-all duration-200 cursor-pointer ${
                   isActive ? 'text-black font-extrabold' : 'text-gray-400 hover:text-gray-600'
                 }`}

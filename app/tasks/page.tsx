@@ -299,16 +299,29 @@ export default function Tasks() {
   const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usingSeedTasks, setUsingSeedTasks] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadTasks = async () => {
+      setError(null);
       try {
         const data = await listTasks();
-        if (!cancelled) setTasks(data.map(toTaskView));
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load Supabase tasks.');
+        if (!cancelled) {
+          if (data.length === 0) {
+            setTasks(tasksData);
+            setUsingSeedTasks(true);
+          } else {
+            setTasks(data.map(toTaskView));
+            setUsingSeedTasks(false);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setTasks(tasksData);
+          setUsingSeedTasks(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -342,6 +355,23 @@ export default function Tasks() {
     if (!title) return;
 
     try {
+      if (usingSeedTasks) {
+        setTasks((current) => [
+          {
+            ...tasksData[0],
+            id: Date.now(),
+            name: title,
+            subtitle: prompt('Task area/subtitle:', '') || '',
+            project: prompt('Project:', '') || 'Unassigned Project',
+            assignee: prompt('Assigned to:', '') || 'Unassigned',
+            status: 'Pending',
+            progress: '0%',
+          },
+          ...current,
+        ]);
+        return;
+      }
+
       const created = await createTask({
         title,
         subtitle: prompt('Task area/subtitle:', '') || '',
@@ -370,6 +400,11 @@ export default function Tasks() {
     const status = prompt('Edit status:', task.status) || task.status;
 
     try {
+      if (usingSeedTasks) {
+        setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, name: title, status } : item)));
+        return;
+      }
+
       await updateTask(task.id, { title, status });
       setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, name: title, status } : item)));
     } catch (err) {
@@ -381,6 +416,12 @@ export default function Tasks() {
     if (!confirm('Delete this task?')) return;
 
     try {
+      if (usingSeedTasks) {
+        setTasks((current) => current.filter((task) => task.id !== id));
+        setSelectedTasks((current) => current.filter((taskId) => taskId !== id));
+        return;
+      }
+
       await deleteTask(id);
       setTasks((current) => current.filter((task) => task.id !== id));
       setSelectedTasks((current) => current.filter((taskId) => taskId !== id));

@@ -59,8 +59,8 @@ export default function LoginView() {
       setSuccessMessage(
         result.requiresConfirmation
           ? 'Account created. Check your email to confirm the session before signing in.'
-          : requestedRole === 'ADMIN' && result.effectiveRole !== 'ADMIN'
-            ? 'Account created. Admin access has been requested and your current access is Customer until approval.'
+          : requestedRole === 'ADMIN' && result.effectiveRole === 'ADMIN'
+            ? 'Account created with administrator access.'
             : 'Account created successfully.'
       );
       setConfirmPassword('');
@@ -168,6 +168,7 @@ export default function LoginView() {
             width={180}
             height={112}
             className="object-contain hover:brightness-110 transition-all duration-300"
+            priority
           />
         </div>
 

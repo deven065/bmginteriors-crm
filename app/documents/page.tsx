@@ -267,6 +267,7 @@ export default function Documents() {
   const [selectedDocs, setSelectedDocs] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usingSeedDocuments, setUsingSeedDocuments] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -277,9 +278,20 @@ export default function Documents() {
 
       try {
         const data = await listDocuments();
-        if (!cancelled) setDocuments(data.map(toDocumentView));
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load Supabase documents.');
+        if (!cancelled) {
+          if (data.length === 0) {
+            setDocuments(documentsData);
+            setUsingSeedDocuments(true);
+          } else {
+            setDocuments(data.map(toDocumentView));
+            setUsingSeedDocuments(false);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setDocuments(documentsData);
+          setUsingSeedDocuments(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -313,6 +325,29 @@ export default function Documents() {
     if (!name) return;
 
     try {
+      if (usingSeedDocuments) {
+        const now = new Date();
+        setDocuments((current) => [
+          {
+            ...documentsData[0],
+            id: Date.now(),
+            name,
+            project: prompt('Project:', '') || '',
+            category: fileType === 'folder' ? 'Folder' : prompt('Category:', 'Reports') || 'Reports',
+            type: fileType === 'folder' ? '-' : fileType.toUpperCase(),
+            size: fileType === 'folder' ? '-' : prompt('File size:', '') || '-',
+            uploadedBy: 'BMG Team',
+            role: 'Admin',
+            avatar: 'admin',
+            date: new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(now),
+            time: new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(now),
+            fileType,
+          },
+          ...current,
+        ]);
+        return;
+      }
+
       const created = await createDocument({
         name,
         project: prompt('Project:', '') || '',
@@ -338,6 +373,11 @@ export default function Documents() {
     const category = prompt('Edit category:', doc.category) || doc.category;
 
     try {
+      if (usingSeedDocuments) {
+        setDocuments((current) => current.map((item) => (item.id === doc.id ? { ...item, name, category } : item)));
+        return;
+      }
+
       await updateDocument(doc.id, { name, category });
       setDocuments((current) => current.map((item) => (item.id === doc.id ? { ...item, name, category } : item)));
     } catch (err) {
@@ -349,6 +389,12 @@ export default function Documents() {
     if (!confirm('Delete this document record?')) return;
 
     try {
+      if (usingSeedDocuments) {
+        setDocuments((current) => current.filter((doc) => doc.id !== id));
+        setSelectedDocs((current) => current.filter((docId) => docId !== id));
+        return;
+      }
+
       await deleteDocument(id);
       setDocuments((current) => current.filter((doc) => doc.id !== id));
       setSelectedDocs((current) => current.filter((docId) => docId !== id));

@@ -41,7 +41,8 @@ export default function Sidebar({ closeDrawer }: { closeDrawer?: () => void }) {
           alt="BMG Interiors" 
           width={120}
           height={64}
-          className="h-16 w-auto object-contain hover:brightness-110 transition-all duration-300"
+          className="h-16 w-[120px] object-contain hover:brightness-110 transition-all duration-300"
+          priority
         />
       </div>
       
