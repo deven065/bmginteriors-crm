@@ -17,6 +17,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
+  signUp: (input: SignUpInput) => Promise<SignUpResult>;
   logout: () => Promise<void>;
 }
 
@@ -25,6 +26,20 @@ interface ProfileRecord {
   username: string | null;
   full_name: string;
   role: AppRole;
+}
+
+interface SignUpInput {
+  email: string;
+  password: string;
+  fullName: string;
+  username?: string;
+  requestedRole: AppRole;
+}
+
+interface SignUpResult {
+  ok: boolean;
+  requiresConfirmation: boolean;
+  effectiveRole?: AppRole;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -171,6 +186,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signUp = async (input: SignUpInput): Promise<SignUpResult> => {
+    setError(null);
+
+    try {
+      const supabase = requireSupabaseBrowserClient();
+      const email = input.email.trim().toLowerCase();
+      const username = input.username?.trim() || email.split('@')[0];
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: input.password,
+        options: {
+          data: {
+            full_name: input.fullName.trim(),
+            username,
+            requested_role: input.requestedRole,
+          },
+        },
+      });
+
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      if (!data.user) {
+        throw new Error('Unable to create your account.');
+      }
+
+      if (data.session) {
+        try {
+          const profile = await loadProfile(data.user.id, data.user.email);
+          setUser(profile);
+          return {
+            ok: true,
+            requiresConfirmation: false,
+            effectiveRole: profile.role,
+          };
+        } catch {
+          return {
+            ok: true,
+            requiresConfirmation: false,
+          };
+        }
+      }
+
+      return {
+        ok: true,
+        requiresConfirmation: true,
+      };
+    } catch (err) {
+      setError(
+        err instanceof SupabaseConfigError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Unable to create your Supabase account.'
+      );
+      return {
+        ok: false,
+        requiresConfirmation: false,
+      };
+    }
+  };
+
   const logout = async () => {
     try {
       const supabase = requireSupabaseBrowserClient();
@@ -181,7 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, signUp, logout }}>
       {children}
     </AuthContext.Provider>
   );

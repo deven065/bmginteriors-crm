@@ -2,6 +2,8 @@
 
 Production-oriented CRM for BMG Interiors, built with a Next.js App Router frontend and Supabase authentication, authorization, and database storage.
 
+For the full developer architecture, auth flow, data/API flows, database model, and production checklist, read `PROJECT_SYSTEM_DESIGN.md`.
+
 ## Local Development
 
 Install frontend dependencies:

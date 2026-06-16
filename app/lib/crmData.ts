@@ -305,7 +305,7 @@ export async function listCustomers() {
   const supabase = requireSupabaseBrowserClient();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, full_name, role, phone, created_at, updated_at')
+    .select('id, username, full_name, role, requested_role, phone, created_at, updated_at')
     .eq('role', 'CUSTOMER')
     .order('full_name');
 

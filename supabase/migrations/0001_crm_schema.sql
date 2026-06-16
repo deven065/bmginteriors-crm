@@ -5,10 +5,26 @@ create table if not exists public.profiles (
   username text unique,
   full_name text not null,
   role text not null default 'CUSTOMER' check (role in ('ADMIN', 'CUSTOMER')),
+  requested_role text not null default 'CUSTOMER' check (requested_role in ('ADMIN', 'CUSTOMER')),
   phone text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles
+add column if not exists requested_role text not null default 'CUSTOMER';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_requested_role_check'
+  ) then
+    alter table public.profiles
+    add constraint profiles_requested_role_check check (requested_role in ('ADMIN', 'CUSTOMER'));
+  end if;
+end $$;
 
 create table if not exists public.projects (
   id bigint generated always as identity primary key,
@@ -139,12 +155,19 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, username, full_name, role)
+  insert into public.profiles (id, username, full_name, role, requested_role)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'username', split_part(new.email, '@', 1)),
     coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
-    coalesce(new.raw_app_meta_data ->> 'role', new.raw_user_meta_data ->> 'role', 'CUSTOMER')
+    case
+      when new.raw_app_meta_data ->> 'role' in ('ADMIN', 'CUSTOMER') then new.raw_app_meta_data ->> 'role'
+      else 'CUSTOMER'
+    end,
+    case
+      when new.raw_user_meta_data ->> 'requested_role' in ('ADMIN', 'CUSTOMER') then new.raw_user_meta_data ->> 'requested_role'
+      else 'CUSTOMER'
+    end
   )
   on conflict (id) do nothing;
 
