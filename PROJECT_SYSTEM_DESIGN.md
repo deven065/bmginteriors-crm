@@ -15,6 +15,8 @@ The current production path uses:
 
 ## 2. High-Level Architecture
 
+The CRM follows a frontend-first architecture backed directly by Supabase services. Next.js owns the user experience, routing, page composition, and client-side state. Supabase owns identity, database persistence, row-level authorization, and session token lifecycle. This keeps the application lightweight while still giving production-grade authentication and database security.
+
 ```text
 Browser
   |
@@ -30,6 +32,236 @@ Supabase Auth <----> Supabase Postgres
                        v
                  CRM tables
 ```
+
+### 2.1 System Context
+
+```text
+Users
+  |
+  | Browser over HTTPS
+  v
+BMG Interiors CRM Web App
+  |
+  | Supabase JS/SSR client
+  v
+Supabase Platform
+  |
+  | Auth, Postgres, RLS, triggers
+  v
+Secured CRM Data
+```
+
+User groups:
+
+- `ADMIN` users manage CRM operations: projects, customers, tasks, workers, attendance, documents, reports, and settings.
+- `CUSTOMER` users get restricted access to customer-safe project information.
+- New users can sign up and request a role, but the effective role is controlled by the secured `profiles.role` field.
+
+External systems:
+
+- Supabase Auth handles email/password identity and session tokens.
+- Supabase Postgres stores all CRM records.
+- Supabase RLS enforces database-level authorization.
+- The legacy Spring Boot backend remains in the repository but is not the primary frontend data path.
+
+### 2.2 Major Components
+
+#### Browser/UI Layer
+
+Responsibilities:
+
+- Render CRM pages and navigation.
+- Show login/signup forms.
+- Store short-lived frontend auth state through `AuthContext`.
+- Call typed CRM data functions from `app/lib/crmData.ts`.
+- Hide or show UI actions based on the effective role.
+
+Important files:
+
+- `app/components/LoginView.tsx`
+- `app/components/DashboardShell.tsx`
+- `app/components/Sidebar.tsx`
+- Route pages under `app/`
+
+#### Next.js Application Layer
+
+Responsibilities:
+
+- Provide App Router pages and layouts.
+- Run `proxy.ts` before matched requests.
+- Refresh Supabase auth cookies using `@supabase/ssr`.
+- Provide reusable Supabase browser/server helper clients.
+
+Important files:
+
+- `app/layout.tsx`
+- `proxy.ts`
+- `utils/supabase/client.ts`
+- `utils/supabase/server.ts`
+- `utils/supabase/middleware.ts`
+
+#### Auth and Authorization Layer
+
+Responsibilities:
+
+- Create and validate sessions with Supabase Auth.
+- Create profile rows through the database trigger.
+- Load effective role from `public.profiles`.
+- Enforce route-level restrictions in the frontend.
+- Enforce true security through Supabase RLS.
+
+Important files:
+
+- `app/context/AuthContext.tsx`
+- `supabase/migrations/0001_crm_schema.sql`
+
+#### Data Access Layer
+
+Responsibilities:
+
+- Centralize typed Supabase table operations.
+- Keep page components free from raw query details.
+- Convert database rows into UI-friendly CRM objects.
+
+Important files:
+
+- `app/lib/crmData.ts`
+- `app/lib/supabase.ts`
+- `app/lib/supabaseTypes.ts`
+
+#### Database Layer
+
+Responsibilities:
+
+- Store CRM entities.
+- Maintain profile records.
+- Run triggers for new users and timestamp updates.
+- Enforce RLS policies for admin/customer separation.
+
+Tables:
+
+- `profiles`
+- `projects`
+- `tasks`
+- `workers`
+- `attendance`
+- `documents`
+
+### 2.3 Runtime Request Flow
+
+```text
+User opens CRM route
+  -> Next.js receives request
+  -> proxy.ts runs
+  -> Supabase SSR client checks/refreshes session cookies
+  -> Next.js renders route shell
+  -> AuthContext reads current browser session
+  -> AuthContext loads profile from Supabase
+  -> DashboardShell gates access
+  -> Page calls crmData function
+  -> Supabase RLS validates query
+  -> UI renders allowed data
+```
+
+This means the app has two layers of protection:
+
+- UX-level protection: navigation and pages hide restricted areas.
+- Database-level protection: RLS blocks unauthorized reads/writes even if someone bypasses the UI.
+
+### 2.4 Signup and Role HLD
+
+```text
+Signup form
+  -> Supabase Auth signUp()
+  -> Auth user created
+  -> handle_new_user() trigger runs
+  -> profiles row created
+  -> requested_role stored
+  -> effective role defaults to CUSTOMER
+  -> Admin later approves by changing profiles.role if needed
+```
+
+Why this design:
+
+- Public signup must not directly grant admin access.
+- The app still captures the user's intent through `requested_role`.
+- Admin permissions are granted only through trusted operations.
+- Supabase RLS uses `profiles.role`, not client-provided metadata, as the authorization source.
+
+### 2.5 Module Boundaries
+
+Frontend pages should not directly contain raw Supabase query logic. They should call `crmData.ts` helpers.
+
+Auth UI should not decide final permissions. It should display requested roles and call `AuthContext`.
+
+Route restrictions in `DashboardShell` are only presentation safeguards. Final authorization belongs to Supabase RLS.
+
+Database policies should remain centralized in the Supabase migration. Any new table must include:
+
+- Table definition.
+- Indexes.
+- Grants.
+- RLS enablement.
+- Select policy.
+- Mutation policy.
+- Relevant helper functions if customer scoping is required.
+
+### 2.6 Deployment View
+
+```text
+Hosting Platform
+  |
+  | Next.js build/start
+  v
+Next.js Runtime
+  |
+  | NEXT_PUBLIC_SUPABASE_URL
+  | NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  v
+Supabase Project
+  |
+  | Auth + Postgres + RLS
+  v
+Production CRM Data
+```
+
+Production requirements:
+
+- Deploy with `.env.local` values configured as hosting environment variables.
+- Keep demo access disabled.
+- Run the Supabase migration before first production use.
+- Create the first admin through a trusted process.
+- Verify RLS with both admin and customer accounts.
+
+### 2.7 Non-Functional Requirements
+
+Security:
+
+- Supabase RLS is mandatory for all production tables.
+- Service role keys must never be exposed to browser code.
+- Public signup can request but not grant admin access.
+
+Scalability:
+
+- Supabase handles database connection management and auth token validation.
+- Next.js pages can scale horizontally because session state lives in cookies/Supabase, not server memory.
+
+Maintainability:
+
+- Shared data access lives in `crmData.ts`.
+- Shared auth logic lives in `AuthContext`.
+- Database rules live in migrations instead of scattered UI checks.
+
+Reliability:
+
+- Auth sessions are refreshed through `proxy.ts`.
+- Database triggers create required profile rows automatically.
+- RLS protects data even when frontend code has bugs.
+
+Observability:
+
+- Current observability is mostly platform-level logs.
+- Future production hardening should add audit logs for create/update/delete operations.
 
 Primary application routes:
 
@@ -304,4 +536,3 @@ Do not rely on public signup metadata to grant admin access.
 - Add typed Supabase generation from the live schema instead of maintaining local types manually.
 - Add automated browser tests for role routing and CRUD flows.
 - Add server actions or route handlers for workflows that need trusted server-side logic.
-
